@@ -1,7 +1,7 @@
 -- Insert milestones for Korean cooking
 INSERT INTO milestones (skill_id, level, description) 
 SELECT 
-  (SELECT id FROM skills WHERE key = 'korea_food'),
+  (SELECT id FROM skills WHERE key = 'korean_food'),
   level,
   milestone
 FROM (VALUES

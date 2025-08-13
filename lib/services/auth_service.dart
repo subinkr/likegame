@@ -13,7 +13,6 @@ class AuthService {
   Future<AuthResponse> signUp({
     required String email,
     required String password,
-    required String nickname,
   }) async {
     try {
       // Supabase 연결 상태 확인
@@ -28,34 +27,8 @@ class AuthService {
         password: password,
       );
       
-      // 프로필 생성은 트리거에서 자동으로 처리됨
-      // 닉네임 업데이트는 별도로 처리
-      if (response.user != null) {
-        // 트리거가 프로필을 생성할 때까지 잠시 대기
-        await Future.delayed(const Duration(milliseconds: 1000));
-        
-        try {
-          await _supabase
-              .from('profiles')
-              .update({
-                'email': email,
-                'nickname': nickname,
-                'updated_at': DateTime.now().toIso8601String(),
-              })
-              .eq('id', response.user!.id);
-        } catch (e) {
-          // 프로필이 아직 생성되지 않았다면 다시 시도
-          await Future.delayed(const Duration(milliseconds: 1000));
-          await _supabase
-              .from('profiles')
-              .update({
-                'email': email,
-                'nickname': nickname,
-                'updated_at': DateTime.now().toIso8601String(),
-              })
-              .eq('id', response.user!.id);
-        }
-      }
+      // 프로필은 트리거에서 자동으로 생성됨
+      // 추가 작업이 필요하면 여기에 작성
       
       return response;
     } on AuthException catch (e) {
@@ -91,7 +64,37 @@ class AuthService {
         email: email,
         password: password,
       );
+    } on AuthException catch (e) {
+      // Supabase 인증 오류 처리
+      switch (e.message) {
+        case 'Invalid login credentials':
+          throw Exception('이메일 또는 비밀번호가 올바르지 않습니다.');
+        case 'Email not confirmed':
+          throw Exception('이메일 인증이 필요합니다. 이메일을 확인해주세요.');
+        case 'Too many requests':
+          throw Exception('너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.');
+        case 'User not found':
+          throw Exception('등록되지 않은 이메일입니다. 회원가입을 먼저 해주세요.');
+        case 'Invalid email':
+          throw Exception('올바른 이메일 형식을 입력해주세요.');
+        case 'Password should be at least 6 characters':
+          throw Exception('비밀번호는 최소 6자 이상이어야 합니다.');
+        default:
+          if (e.message.contains('404') || e.message.contains('empty response')) {
+            throw Exception('서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.');
+          }
+          throw Exception('로그인 오류: ${e.message}');
+      }
     } catch (e) {
+      if (e.toString().contains('404') || e.toString().contains('empty response')) {
+        throw Exception('서버 연결 오류: 설정을 확인해주세요.');
+      }
+      if (e.toString().contains('timeout')) {
+        throw Exception('로그인 시간이 초과되었습니다. 다시 시도해주세요.');
+      }
+      if (e.toString().contains('network')) {
+        throw Exception('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
+      }
       rethrow;
     }
   }

@@ -13,7 +13,7 @@ CREATE TABLE skills (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
-  key TEXT NOT NULL UNIQUE, -- 예: "korea", "boxing", "weight_training", "running"
+  key TEXT NOT NULL UNIQUE, -- 예: "korean_food", "boxing", "weight_training", "running"
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -40,7 +40,7 @@ CREATE TABLE user_milestones (
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE,
-  nickname TEXT,
+  nickname TEXT DEFAULT 'anonymous',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -53,17 +53,17 @@ INSERT INTO categories (name) VALUES
 
 -- Insert initial skills
 INSERT INTO skills (name, category_id, key) VALUES
-  ('대한민국 요리', (SELECT id FROM categories WHERE name = '요리 & 식음료'), 'korea'),
+  ('대한민국 요리', (SELECT id FROM categories WHERE name = '요리 & 식음료'), 'korean_food'),
   ('복싱', (SELECT id FROM categories WHERE name = '무술 & 격투기'), 'boxing'),
   ('웨이트 트레이닝', (SELECT id FROM categories WHERE name = '피트니스 & 스포츠'), 'weight_training'),
   ('달리기', (SELECT id FROM categories WHERE name = '피트니스 & 스포츠'), 'running');
 
--- Trigger to automatically create profile on user signup
+-- 트리거를 통한 자동 프로필 생성
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, nickname)
-  VALUES (new.id, new.email, '사용자');
+  VALUES (new.id, new.email, 'anonymous');
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -79,9 +79,6 @@ ALTER TABLE user_milestones ENABLE ROW LEVEL SECURITY;
 -- Profiles policies
 CREATE POLICY "Public profiles are viewable by everyone." ON profiles
   FOR SELECT USING (true);
-
-CREATE POLICY "Users can insert their own profile." ON profiles
-  FOR INSERT WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Users can update own profile." ON profiles
   FOR UPDATE USING (auth.uid() = id);

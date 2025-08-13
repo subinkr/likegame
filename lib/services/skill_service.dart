@@ -48,16 +48,19 @@ class SkillService {
   // 특정 스킬의 마일스톤 가져오기
   Future<List<Milestone>> getMilestones(String skillId) async {
     try {
+      print('DEBUG: Getting milestones for skillId: $skillId');
       final response = await _supabase
           .from('milestones')
           .select()
           .eq('skill_id', skillId)
           .order('level');
 
+      print('DEBUG: Milestones response: ${response.length} items');
       return (response as List)
           .map((milestone) => Milestone.fromJson(milestone))
           .toList();
     } catch (e) {
+      print('DEBUG: Error getting milestones: $e');
       rethrow;
     }
   }

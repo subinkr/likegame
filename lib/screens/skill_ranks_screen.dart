@@ -76,15 +76,72 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
     }
   }
 
+  bool _isCurrentRank(RankData rankData) {
+    // 현재 도전 중인 랭크는 현재 달성한 등급보다 1단계 높은 등급
+    final currentRankLevel = _getRankLevel(rankData.currentRank);
+    final targetRankLevel = _getRankLevel(rankData.rank);
+    return targetRankLevel == currentRankLevel + 1;
+  }
+
+  // 랭크가 완료되었는지 확인 (100% 진행률)
+  bool _isRankCompleted(RankData rankData) {
+    return rankData.progressPercentage >= 1.0;
+  }
+
+  // 랭크가 잠겨있는지 확인
+  bool _isRankLocked(RankData rankData) {
+    // 현재 달성한 등급보다 1단계 높은 등급까지만 열려있음
+    final currentRankLevel = _getRankLevel(rankData.currentRank);
+    final targetRankLevel = _getRankLevel(rankData.rank);
+    return targetRankLevel > currentRankLevel + 1;
+  }
+
+  // 등급별 레벨 반환
+  int _getRankLevel(String rank) {
+    switch (rank) {
+      case 'F': return 0;
+      case 'E': return 1;
+      case 'D': return 2;
+      case 'C': return 3;
+      case 'B': return 4;
+      case 'A': return 5;
+      default: return 0;
+    }
+  }
+
+  // 현재 도전 중인 등급 계산
+  String _getCurrentChallengeRank() {
+    final completedCount = _skillProgress?.completedCount ?? 0;
+    if (completedCount == 0) return 'E';
+    if (completedCount < 20) return 'E';
+    if (completedCount < 40) return 'D';
+    if (completedCount < 60) return 'C';
+    if (completedCount < 80) return 'B';
+    if (completedCount < 100) return 'A';
+    return 'A'; // A등급 이상은 A등급 유지
+  }
+
+  // 등급별 시작/끝 레벨
+  Map<String, Map<String, int>> _getRankLevels() {
+    return {
+      'E': {'start': 1, 'end': 20},
+      'D': {'start': 21, 'end': 40},
+      'C': {'start': 41, 'end': 60},
+      'B': {'start': 61, 'end': 80},
+      'A': {'start': 81, 'end': 100},
+    };
+  }
+
   List<RankData> _generateRankData() {
     final completedCount = _skillProgress?.completedCount ?? 0;
+    final currentRank = _skillProgress?.rank ?? 'F';
     
     return [
-      RankData('E', 1, 20, completedCount),
-      RankData('D', 21, 40, completedCount),
-      RankData('C', 41, 60, completedCount),
-      RankData('B', 61, 80, completedCount),
-      RankData('A', 81, 100, completedCount),
+      RankData('E', 1, 20, completedCount, currentRank),
+      RankData('D', 21, 40, completedCount, currentRank),
+      RankData('C', 41, 60, completedCount, currentRank),
+      RankData('B', 61, 80, completedCount, currentRank),
+      RankData('A', 81, 100, completedCount, currentRank),
     ];
   }
 
@@ -103,6 +160,30 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
       // 마일스톤 화면에서 돌아왔을 때 데이터 새로고침
       _loadData();
     });
+  }
+
+  // 스킬 카드 클릭 시 현재 도전 중인 등급의 마일스톤으로 이동
+  void _navigateToCurrentChallengeMilestones() {
+    final challengeRank = _getCurrentChallengeRank();
+    final rankLevels = _getRankLevels();
+    final levels = rankLevels[challengeRank];
+    
+    if (levels != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MilestonesScreen(
+            skill: widget.skill,
+            rank: challengeRank,
+            startLevel: levels['start']!,
+            endLevel: levels['end']!,
+          ),
+        ),
+      ).then((_) {
+        // 마일스톤 화면에서 돌아왔을 때 데이터 새로고침
+        _loadData();
+      });
+    }
   }
 
   @override
@@ -160,7 +241,9 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
     final totalCount = progress?.totalCount ?? 100;
     final progressPercentage = progress?.progressPercentage ?? 0.0;
 
-    return Container(
+    return GestureDetector(
+      onTap: _navigateToCurrentChallengeMilestones,
+      child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -205,13 +288,24 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
           
           const SizedBox(height: 16),
           
-          Text(
-            widget.skill.name,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.skill.name,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white.withOpacity(0.8),
+                size: 16,
+              ),
+            ],
           ),
           
           const SizedBox(height: 8),
@@ -266,19 +360,22 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _buildRankCard(RankData rankData) {
+    final isLocked = _isRankLocked(rankData);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.white,
+        color: isLocked ? Colors.grey[100] : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        elevation: 2,
+        elevation: isLocked ? 1 : 2,
         shadowColor: Colors.black.withOpacity(0.1),
         child: InkWell(
-          onTap: () => _navigateToMilestones(
+          onTap: isLocked ? null : () => _navigateToMilestones(
             rankData.rank,
             rankData.startLevel,
             rankData.endLevel,
@@ -289,23 +386,52 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
             child: Row(
               children: [
                 // 랭크 아이콘
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: _getRankColor(rankData.rank),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Center(
-                    child: Text(
-                      rankData.rank,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                Stack(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: isLocked ? Colors.grey[400]! : _getRankColor(rankData.rank),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Center(
+                        child: isLocked 
+                          ? const Icon(
+                              Icons.lock,
+                              color: Colors.white,
+                              size: 24,
+                            )
+                          : Text(
+                              rankData.rank,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                       ),
                     ),
-                  ),
+                    if (_isRankCompleted(rankData) && !isLocked)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 
                 const SizedBox(width: 16),
@@ -320,41 +446,66 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
                         children: [
                           Text(
                             '${rankData.rank} 등급',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
+                              color: isLocked 
+                                ? Colors.grey[400] 
+                                : (_isCurrentRank(rankData) ? _getRankColor(rankData.rank) : Colors.black),
                             ),
                           ),
-                          Text(
-                            '${rankData.completedInRank}/${rankData.totalInRank}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.bold,
+                          if (!isLocked)
+                            Text(
+                              '${rankData.completedInRank}/${rankData.totalInRank}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       
                       const SizedBox(height: 4),
                       
                       Text(
-                        '레벨 ${rankData.startLevel}-${rankData.endLevel}',
+                        isLocked ? '잠겨있음' : '레벨 ${rankData.startLevel}-${rankData.endLevel}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: isLocked ? Colors.grey[400] : Colors.grey[600],
                         ),
                       ),
                       
                       const SizedBox(height: 8),
                       
                       // 진행률 바
-                      LinearProgressIndicator(
-                        value: rankData.progressPercentage,
-                        backgroundColor: Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation(_getRankColor(rankData.rank)),
-                        minHeight: 6,
-                      ),
+                      if (!isLocked)
+                        LinearProgressIndicator(
+                          value: rankData.progressPercentage,
+                          backgroundColor: Colors.grey[200],
+                          valueColor: AlwaysStoppedAnimation(_getRankColor(rankData.rank)),
+                          minHeight: 6,
+                        )
+                      else
+                        Container(
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -362,11 +513,18 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
                 const SizedBox(width: 16),
                 
                 // 화살표
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Colors.grey[400],
-                ),
+                if (!isLocked)
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey[400],
+                  )
+                else
+                  Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: Colors.grey[400],
+                  ),
               ],
             ),
           ),
@@ -377,12 +535,13 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
 }
 
 class RankData {
-  final String rank;
+  final String rank; // 도전 중인 등급
   final int startLevel;
   final int endLevel;
   final int totalCompleted;
+  final String currentRank; // 현재 달성한 등급
 
-  RankData(this.rank, this.startLevel, this.endLevel, this.totalCompleted);
+  RankData(this.rank, this.startLevel, this.endLevel, this.totalCompleted, this.currentRank);
 
   int get totalInRank => endLevel - startLevel + 1;
 

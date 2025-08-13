@@ -13,7 +13,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _nicknameController = TextEditingController();
   final AuthService _authService = AuthService();
   
   bool _isLoading = false;
@@ -25,7 +24,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _nicknameController.dispose();
     super.dispose();
   }
 
@@ -40,7 +38,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await _authService.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        nickname: _nicknameController.text.trim(),
       );
       
       if (mounted) {
@@ -103,34 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 
                 const SizedBox(height: 40),
                 
-                // 닉네임 입력
-                TextFormField(
-                  controller: _nicknameController,
-                  decoration: InputDecoration(
-                    labelText: '닉네임',
-                    prefixIcon: const Icon(Icons.person_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  textInputAction: TextInputAction.next,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '닉네임을 입력해주세요';
-                    }
-                    if (value.length < 2) {
-                      return '닉네임은 2자 이상이어야 합니다';
-                    }
-                    if (value.length > 20) {
-                      return '닉네임은 20자 이하여야 합니다';
-                    }
-                    return null;
-                  },
-                ),
-                
-                const SizedBox(height: 16),
+
                 
                 // 이메일 입력
                 TextFormField(

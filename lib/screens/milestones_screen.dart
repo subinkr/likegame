@@ -43,12 +43,13 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
       final milestones = await _skillService.getMilestones(widget.skill.id);
       final completedIds = await _skillService.getCompletedMilestoneIds(user.id, widget.skill.id);
 
-      // 현재 랭크에 해당하는 마일스톤만 필터링
+      // 현재 랭크에 해당하는 마일스톤만 필터링하고 레벨 순서대로 정렬
       final filteredMilestones = milestones
           .where((milestone) => 
               milestone.level >= widget.startLevel && 
               milestone.level <= widget.endLevel)
-          .toList();
+          .toList()
+        ..sort((a, b) => a.level.compareTo(b.level)); // 레벨이 낮은 것부터 정렬
 
       if (mounted) {
         setState(() {
@@ -72,6 +73,33 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
     }
   }
 
+  // 마일스톤 취소가 제한되는지 확인
+  bool _isMilestoneCancelRestricted(Milestone milestone) {
+    final completedCount = _completedMilestoneIds.length;
+    
+    // 21개 이상 체크되었을 때 20개까지 잠금
+    if (completedCount >= 21 && milestone.level <= 20) {
+      return true;
+    }
+    
+    // 41개 이상 체크되었을 때 40개까지 잠금
+    if (completedCount >= 41 && milestone.level <= 40) {
+      return true;
+    }
+    
+    // 61개 이상 체크되었을 때 60개까지 잠금
+    if (completedCount >= 61 && milestone.level <= 60) {
+      return true;
+    }
+    
+    // 81개 이상 체크되었을 때 80개까지 잠금
+    if (completedCount >= 81 && milestone.level <= 80) {
+      return true;
+    }
+    
+    return false;
+  }
+
   Future<void> _toggleMilestone(Milestone milestone) async {
     try {
       final user = _authService.currentUser;
@@ -80,6 +108,20 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
       final isCompleted = _completedMilestoneIds.contains(milestone.id);
 
       if (isCompleted) {
+        // 취소 제한 확인
+        if (_isMilestoneCancelRestricted(milestone)) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('상위 등급이 활성화되어 하위 등급 마일스톤은 취소할 수 없습니다'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+
         await _skillService.uncompleteMilestone(user.id, milestone.id);
         setState(() {
           _completedMilestoneIds.remove(milestone.id);
@@ -279,18 +321,24 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
   }
 
   Widget _buildMilestoneCard(Milestone milestone, bool isCompleted) {
+    final isCancelRestricted = isCompleted && _isMilestoneCancelRestricted(milestone);
+    
     return GestureDetector(
-      onTap: () => _toggleMilestone(milestone),
+      onTap: isCancelRestricted ? null : () => _toggleMilestone(milestone),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           color: isCompleted 
-              ? _getRankColor(widget.rank).withOpacity(0.1)
+              ? (isCancelRestricted 
+                  ? Colors.grey[200] 
+                  : _getRankColor(widget.rank).withOpacity(0.1))
               : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isCompleted 
-                ? _getRankColor(widget.rank)
+                ? (isCancelRestricted 
+                    ? Colors.grey[400]!
+                    : _getRankColor(widget.rank))
                 : Colors.grey[300]!,
             width: isCompleted ? 2 : 1,
           ),
@@ -332,7 +380,9 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                     child: Icon(
                       isCompleted ? Icons.check_circle : Icons.circle_outlined,
                       color: isCompleted 
-                          ? _getRankColor(widget.rank)
+                          ? (isCancelRestricted 
+                              ? Colors.grey[500]
+                              : _getRankColor(widget.rank))
                           : Colors.grey[400],
                       size: 24,
                     ),
@@ -344,19 +394,37 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
               
               // 마일스톤 설명
               Expanded(
-                child: Text(
-                  milestone.description,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isCompleted 
-                        ? _getRankColor(widget.rank)
-                        : Colors.grey[800],
-                    fontWeight: isCompleted 
-                        ? FontWeight.w600 
-                        : FontWeight.normal,
-                  ),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      milestone.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isCompleted 
+                            ? (isCancelRestricted 
+                                ? Colors.grey[600]
+                                : _getRankColor(widget.rank))
+                            : Colors.grey[800],
+                        fontWeight: isCompleted 
+                            ? FontWeight.w600 
+                            : FontWeight.normal,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (isCancelRestricted) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '취소 불가',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],

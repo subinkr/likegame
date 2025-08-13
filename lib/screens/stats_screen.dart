@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/skill_service.dart';
+import 'milestones_screen.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -77,6 +78,101 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
+  // 현재 도전 중인 등급 계산
+  String _getCurrentChallengeRank(int completedCount) {
+    if (completedCount == 0) return 'E';
+    if (completedCount < 20) return 'E';
+    if (completedCount < 40) return 'D';
+    if (completedCount < 60) return 'C';
+    if (completedCount < 80) return 'B';
+    if (completedCount < 100) return 'A';
+    return 'A'; // A등급 이상은 A등급 유지
+  }
+
+  // 현재 도전 중인 랭크의 진행도 계산
+  double _getCurrentRankProgress(SkillProgress skill) {
+    final currentRank = _getCurrentChallengeRank(skill.completedCount);
+    final rankLevels = _getRankLevels();
+    final levels = rankLevels[currentRank];
+    
+    if (levels == null) return 0.0;
+    
+    final startLevel = levels['start']!;
+    final endLevel = levels['end']!;
+    final totalInRank = endLevel - startLevel + 1;
+    
+    if (skill.completedCount < startLevel) return 0.0;
+    if (skill.completedCount >= endLevel) return 1.0;
+    
+    final completedInRank = skill.completedCount - startLevel + 1;
+    return completedInRank / totalInRank;
+  }
+
+  // 현재 도전 중인 랭크의 완료 개수 계산
+  String _getCurrentRankProgressText(SkillProgress skill) {
+    final currentRank = _getCurrentChallengeRank(skill.completedCount);
+    final rankLevels = _getRankLevels();
+    final levels = rankLevels[currentRank];
+    
+    if (levels == null) return '0/0';
+    
+    final startLevel = levels['start']!;
+    final endLevel = levels['end']!;
+    final totalInRank = endLevel - startLevel + 1;
+    
+    if (skill.completedCount < startLevel) return '0/$totalInRank';
+    if (skill.completedCount >= endLevel) return '$totalInRank/$totalInRank';
+    
+    final completedInRank = skill.completedCount - startLevel + 1;
+    return '$completedInRank/$totalInRank';
+  }
+
+  // 등급별 시작/끝 레벨
+  Map<String, Map<String, int>> _getRankLevels() {
+    return {
+      'E': {'start': 1, 'end': 20},
+      'D': {'start': 21, 'end': 40},
+      'C': {'start': 41, 'end': 60},
+      'B': {'start': 61, 'end': 80},
+      'A': {'start': 81, 'end': 100},
+    };
+  }
+
+  // 스킬 카드 클릭 시 해당 스킬의 현재 도전 중인 등급 마일스톤으로 이동
+  void _navigateToSkillMilestones(SkillProgress skillProgress) {
+    final challengeRank = _getCurrentChallengeRank(skillProgress.completedCount);
+    final rankLevels = _getRankLevels();
+    final levels = rankLevels[challengeRank];
+    
+    if (levels != null) {
+      // Skill 객체 생성 (필요한 정보만 포함)
+      final skill = Skill(
+        id: skillProgress.skillId,
+        name: skillProgress.skillName,
+        categoryId: '',
+        key: skillProgress.skillName.toLowerCase().replaceAll(' ', '_'),
+        createdAt: DateTime.now(),
+        category: Category(
+          id: '', 
+          name: skillProgress.categoryName,
+          createdAt: DateTime.now(),
+        ),
+      );
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MilestonesScreen(
+            skill: skill,
+            rank: challengeRank,
+            startLevel: levels['start']!,
+            endLevel: levels['end']!,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -149,12 +245,26 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            _userProfile?.nickname ?? '사용자',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          GestureDetector(
+            onTap: _showNicknameEditDialog,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                                 Text(
+                   _userProfile?.nickname ?? 'anonymous',
+                   style: const TextStyle(
+                     fontSize: 24,
+                     fontWeight: FontWeight.bold,
+                     color: Colors.white,
+                   ),
+                 ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.edit,
+                  color: Colors.white.withOpacity(0.8),
+                  size: 20,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -237,18 +347,16 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _buildSkillCard(SkillProgress skill) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
+        child: InkWell(
+          onTap: () => _navigateToSkillMilestones(skill),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           // 랭크 아이콘
@@ -278,12 +386,24 @@ class _StatsScreenState extends State<StatsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  skill.skillName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        skill.skillName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.grey[400],
+                      size: 16,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -295,26 +415,45 @@ class _StatsScreenState extends State<StatsScreen> {
                 ),
                 const SizedBox(height: 8),
                 
-                // 진행률 바
-                LinearProgressIndicator(
-                  value: skill.progressPercentage,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation(_getRankColor(skill.rank)),
-                  minHeight: 6,
+                // 현재 도전 중인 랭크 진행률
+                Row(
+                  children: [
+                    Text(
+                      '${_getCurrentChallengeRank(skill.completedCount)}등급 진행도',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _getCurrentRankProgressText(skill),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
                 
                 const SizedBox(height: 4),
-                Text(
-                  '${skill.completedCount}/${skill.totalCount} 완료',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                
+                // 진행률 바
+                LinearProgressIndicator(
+                  value: _getCurrentRankProgress(skill),
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation(_getRankColor(_getCurrentChallengeRank(skill.completedCount))),
+                  minHeight: 6,
                 ),
               ],
             ),
           ),
         ],
+      ),
+          ),
+        ),
       ),
     );
   }
@@ -347,5 +486,78 @@ class _StatsScreenState extends State<StatsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showNicknameEditDialog() async {
+    final TextEditingController nicknameController = TextEditingController(
+      text: _userProfile?.nickname ?? '',
+    );
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('닉네임 수정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('새로운 닉네임을 입력해주세요'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nicknameController,
+              decoration: const InputDecoration(
+                labelText: '닉네임',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (value) {
+                if (value.trim().isNotEmpty) {
+                  Navigator.of(context).pop(value.trim());
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final nickname = nicknameController.text.trim();
+              if (nickname.isNotEmpty) {
+                Navigator.of(context).pop(nickname);
+              }
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      try {
+        await _authService.updateProfile(nickname: result);
+        await _loadData(); // 프로필 다시 로드
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('닉네임이 수정되었습니다.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('닉네임 수정 실패: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 }
