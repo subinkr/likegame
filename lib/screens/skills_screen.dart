@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/skill_service.dart';
+import '../services/event_service.dart';
 import 'skill_ranks_screen.dart';
 
 class SkillsScreen extends StatefulWidget {
@@ -14,6 +16,8 @@ class SkillsScreen extends StatefulWidget {
 class _SkillsScreenState extends State<SkillsScreen> {
   final AuthService _authService = AuthService();
   final SkillService _skillService = SkillService();
+  final EventService _eventService = EventService();
+  StreamSubscription? _milestoneSubscription;
   final TextEditingController _searchController = TextEditingController();
   
   List<Category> _categories = [];
@@ -28,12 +32,22 @@ class _SkillsScreenState extends State<SkillsScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _subscribeToMilestoneChanges();
   }
 
   @override
   void dispose() {
+    _milestoneSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _subscribeToMilestoneChanges() {
+    _milestoneSubscription = _eventService.milestoneChangedStream.listen((_) {
+      if (mounted) {
+        _loadData(); // 마일스톤 변경 시 데이터 새로고침
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -113,7 +127,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SkillRanksScreen(skill: skill),
+        builder: (context) => SkillRanksScreen(
+          skill: skill,
+          onDataChanged: _loadData, // 데이터 변경 시 새로고침
+        ),
       ),
     );
   }

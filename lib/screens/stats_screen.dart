@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/skill_service.dart';
+import '../services/event_service.dart';
 import 'milestones_screen.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -14,6 +16,8 @@ class StatsScreen extends StatefulWidget {
 class _StatsScreenState extends State<StatsScreen> {
   final AuthService _authService = AuthService();
   final SkillService _skillService = SkillService();
+  final EventService _eventService = EventService();
+  StreamSubscription? _milestoneSubscription;
   
   UserProfile? _userProfile;
   List<SkillProgress> _topSkills = [];
@@ -24,6 +28,21 @@ class _StatsScreenState extends State<StatsScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _subscribeToMilestoneChanges();
+  }
+
+  @override
+  void dispose() {
+    _milestoneSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToMilestoneChanges() {
+    _milestoneSubscription = _eventService.milestoneChangedStream.listen((_) {
+      if (mounted) {
+        _loadData(); // 마일스톤 변경 시 데이터 새로고침
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -167,6 +186,7 @@ class _StatsScreenState extends State<StatsScreen> {
             rank: challengeRank,
             startLevel: levels['start']!,
             endLevel: levels['end']!,
+            onMilestoneChanged: _loadData, // 마일스톤 변경 시 데이터 새로고침
           ),
         ),
       );

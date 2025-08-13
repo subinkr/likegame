@@ -1,15 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/skill_service.dart';
+import '../services/event_service.dart';
 import 'milestones_screen.dart';
 
 class SkillRanksScreen extends StatefulWidget {
   final Skill skill;
+  final VoidCallback? onDataChanged; // 데이터 변경 시 호출될 콜백
 
   const SkillRanksScreen({
     super.key,
     required this.skill,
+    this.onDataChanged,
   });
 
   @override
@@ -19,6 +23,8 @@ class SkillRanksScreen extends StatefulWidget {
 class _SkillRanksScreenState extends State<SkillRanksScreen> {
   final AuthService _authService = AuthService();
   final SkillService _skillService = SkillService();
+  final EventService _eventService = EventService();
+  StreamSubscription? _milestoneSubscription;
   
   SkillProgress? _skillProgress;
   bool _isLoading = true;
@@ -27,6 +33,21 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _subscribeToMilestoneChanges();
+  }
+
+  @override
+  void dispose() {
+    _milestoneSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToMilestoneChanges() {
+    _milestoneSubscription = _eventService.milestoneChangedStream.listen((_) {
+      if (mounted) {
+        _loadData(); // 마일스톤 변경 시 데이터 새로고침
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -154,12 +175,13 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
           rank: rank,
           startLevel: startLevel,
           endLevel: endLevel,
+          onMilestoneChanged: () {
+            _loadData(); // 마일스톤 변경 시 데이터 새로고침
+            widget.onDataChanged?.call(); // 부모 화면에도 알림
+          },
         ),
       ),
-    ).then((_) {
-      // 마일스톤 화면에서 돌아왔을 때 데이터 새로고침
-      _loadData();
-    });
+    );
   }
 
   // 스킬 카드 클릭 시 현재 도전 중인 등급의 마일스톤으로 이동
@@ -177,12 +199,13 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
             rank: challengeRank,
             startLevel: levels['start']!,
             endLevel: levels['end']!,
+            onMilestoneChanged: () {
+              _loadData(); // 마일스톤 변경 시 데이터 새로고침
+              widget.onDataChanged?.call(); // 부모 화면에도 알림
+            },
           ),
         ),
-      ).then((_) {
-        // 마일스톤 화면에서 돌아왔을 때 데이터 새로고침
-        _loadData();
-      });
+      );
     }
   }
 

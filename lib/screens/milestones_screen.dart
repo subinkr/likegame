@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/skill_service.dart';
+import '../services/event_service.dart';
 
 class MilestonesScreen extends StatefulWidget {
   final Skill skill;
   final String rank;
   final int startLevel;
   final int endLevel;
+  final VoidCallback? onMilestoneChanged; // 마일스톤 변경 시 호출될 콜백
 
   const MilestonesScreen({
     super.key,
@@ -15,6 +17,7 @@ class MilestonesScreen extends StatefulWidget {
     required this.rank,
     required this.startLevel,
     required this.endLevel,
+    this.onMilestoneChanged,
   });
 
   @override
@@ -24,6 +27,7 @@ class MilestonesScreen extends StatefulWidget {
 class _MilestonesScreenState extends State<MilestonesScreen> {
   final AuthService _authService = AuthService();
   final SkillService _skillService = SkillService();
+  final EventService _eventService = EventService();
   
   List<Milestone> _milestones = [];
   Set<String> _completedMilestoneIds = {};
@@ -127,6 +131,12 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
           _completedMilestoneIds.remove(milestone.id);
         });
         
+        // 전역 이벤트 발생
+        _eventService.notifyMilestoneChanged();
+        
+        // 부모 화면에 변경 알림 (기존 호환성 유지)
+        widget.onMilestoneChanged?.call();
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -141,6 +151,12 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
         setState(() {
           _completedMilestoneIds.add(milestone.id);
         });
+        
+        // 전역 이벤트 발생
+        _eventService.notifyMilestoneChanged();
+        
+        // 부모 화면에 변경 알림 (기존 호환성 유지)
+        widget.onMilestoneChanged?.call();
         
         if (mounted) {
           // 완료 애니메이션과 함께 축하 메시지
