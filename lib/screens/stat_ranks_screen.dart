@@ -2,27 +2,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
-import '../services/skill_service.dart';
+import '../services/stat_service.dart';
 import '../services/event_service.dart';
 import 'milestones_screen.dart';
 
-class SkillRanksScreen extends StatefulWidget {
+class StatRanksScreen extends StatefulWidget {
   final Skill skill;
   final VoidCallback? onDataChanged; // 데이터 변경 시 호출될 콜백
 
-  const SkillRanksScreen({
+  const StatRanksScreen({
     super.key,
     required this.skill,
     this.onDataChanged,
   });
 
   @override
-  State<SkillRanksScreen> createState() => _SkillRanksScreenState();
+  State<StatRanksScreen> createState() => _StatRanksScreenState();
 }
 
-class _SkillRanksScreenState extends State<SkillRanksScreen> {
+class _StatRanksScreenState extends State<StatRanksScreen> {
   final AuthService _authService = AuthService();
-  final SkillService _skillService = SkillService();
+  final StatService _statService = StatService();
   final EventService _eventService = EventService();
   StreamSubscription? _milestoneSubscription;
   
@@ -55,7 +55,7 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
       final user = _authService.currentUser;
       if (user == null) return;
 
-      final progress = await _skillService.getUserSkillProgress(user.id, widget.skill.id);
+      final progress = await _statService.getUserSkillProgress(user.id, widget.skill.id);
 
       if (mounted) {
         setState(() {
@@ -132,14 +132,25 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
 
   // 현재 도전 중인 등급 계산
   String _getCurrentChallengeRank() {
-    final completedCount = _skillProgress?.completedCount ?? 0;
-    if (completedCount == 0) return 'E';
-    if (completedCount < 20) return 'E';
-    if (completedCount < 40) return 'D';
-    if (completedCount < 60) return 'C';
-    if (completedCount < 80) return 'B';
-    if (completedCount < 100) return 'A';
-    return 'A'; // A등급 이상은 A등급 유지
+    final currentRank = _skillProgress?.rank ?? 'F';
+    
+    // 현재 등급에 따라 다음 도전 등급 결정
+    switch (currentRank) {
+      case 'F':
+        return 'E';
+      case 'E':
+        return 'D';
+      case 'D':
+        return 'C';
+      case 'C':
+        return 'B';
+      case 'B':
+        return 'A';
+      case 'A':
+        return 'A'; // A등급 이상은 A등급 유지
+      default:
+        return 'E';
+    }
   }
 
   // 등급별 시작/끝 레벨
@@ -184,7 +195,7 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
     );
   }
 
-  // 스킬 카드 클릭 시 현재 도전 중인 등급의 마일스톤으로 이동
+  // 스탯 카드 클릭 시 현재 도전 중인 등급의 마일스톤으로 이동
   void _navigateToCurrentChallengeMilestones() {
     final challengeRank = _getCurrentChallengeRank();
     final rankLevels = _getRankLevels();
@@ -233,7 +244,7 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 스킬 정보 헤더
+                    // 스탯 정보 헤더
                     _buildSkillHeader(),
                     
                     const SizedBox(height: 24),
@@ -334,7 +345,7 @@ class _SkillRanksScreenState extends State<SkillRanksScreen> {
           const SizedBox(height: 8),
           
           Text(
-            widget.skill.category?.name ?? '',
+                            '',
             style: TextStyle(
               fontSize: 14,
               color: Colors.white.withOpacity(0.9),

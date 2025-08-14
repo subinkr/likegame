@@ -34,60 +34,32 @@ class UserProfile {
   }
 }
 
-class Category {
-  final String id;
-  final String name;
-  final DateTime createdAt;
-
-  Category({
-    required this.id,
-    required this.name,
-    required this.createdAt,
-  });
-
-  factory Category.fromJson(Map<String, dynamic> json) {
-    return Category(
-      id: json['id'],
-      name: json['name'],
-      createdAt: DateTime.parse(json['created_at']),
-    );
-  }
-}
-
 class Skill {
   final String id;
   final String name;
-  final String categoryId;
   final String key;
   final DateTime createdAt;
-  final Category? category;
 
   Skill({
     required this.id,
     required this.name,
-    required this.categoryId,
     required this.key,
     required this.createdAt,
-    this.category,
   });
 
   factory Skill.fromJson(Map<String, dynamic> json) {
     return Skill(
       id: json['id'],
       name: json['name'],
-      categoryId: json['category_id'],
       key: json['key'],
       createdAt: DateTime.parse(json['created_at']),
-      category: json['categories'] != null 
-          ? Category.fromJson(json['categories'])
-          : null,
     );
   }
 }
 
 class Milestone {
   final String id;
-  final String skillId;
+  final String skillId; // 내부적으로는 skillId로 유지하되, 데이터베이스에서는 stat_id를 사용
   final int level;
   final String description;
   final DateTime createdAt;
@@ -103,7 +75,7 @@ class Milestone {
   factory Milestone.fromJson(Map<String, dynamic> json) {
     return Milestone(
       id: json['id'],
-      skillId: json['skill_id'],
+      skillId: json['stat_id'] ?? json['skill_id'], // 새로운 컬럼명과 기존 컬럼명 모두 지원
       level: json['level'],
       description: json['description'],
       createdAt: DateTime.parse(json['created_at']),
@@ -142,7 +114,6 @@ class UserMilestone {
 class SkillProgress {
   final String skillId;
   final String skillName;
-  final String categoryName;
   final int completedCount;
   final int totalCount;
   final String rank;
@@ -151,7 +122,6 @@ class SkillProgress {
   SkillProgress({
     required this.skillId,
     required this.skillName,
-    required this.categoryName,
     required this.completedCount,
     required this.totalCount,
     required this.rank,
@@ -160,9 +130,8 @@ class SkillProgress {
 
   factory SkillProgress.fromJson(Map<String, dynamic> json) {
     return SkillProgress(
-      skillId: json['skill_id'],
-      skillName: json['skill_name'],
-      categoryName: json['category_name'],
+      skillId: json['stat_id'] ?? json['skill_id'], // 새로운 함수와 기존 함수 모두 지원
+      skillName: json['stat_name'] ?? json['skill_name'], // 새로운 함수와 기존 함수 모두 지원
       completedCount: json['completed_count'],
       totalCount: json['total_count'],
       rank: json['rank'],
@@ -185,12 +154,12 @@ class SkillProgress {
 }
 
 enum SkillRank {
-  f('F', 0, 0),
-  e('E', 1, 20),
-  d('D', 21, 40),
-  c('C', 41, 60),
-  b('B', 61, 80),
-  a('A', 81, 100);
+  f('F', 0, 19),
+  e('E', 20, 39),
+  d('D', 40, 59),
+  c('C', 60, 79),
+  b('B', 80, 99),
+  a('A', 100, 999);
 
   const SkillRank(this.name, this.minLevel, this.maxLevel);
 
@@ -199,11 +168,11 @@ enum SkillRank {
   final int maxLevel;
 
   static SkillRank fromCompletedCount(int completedCount) {
-    if (completedCount == 0) return SkillRank.f;
-    if (completedCount <= 20) return SkillRank.e;
-    if (completedCount <= 40) return SkillRank.d;
-    if (completedCount <= 60) return SkillRank.c;
-    if (completedCount <= 80) return SkillRank.b;
+    if (completedCount < 20) return SkillRank.f;
+    if (completedCount <= 39) return SkillRank.e;
+    if (completedCount <= 59) return SkillRank.d;
+    if (completedCount <= 79) return SkillRank.c;
+    if (completedCount <= 99) return SkillRank.b;
     return SkillRank.a;
   }
 }

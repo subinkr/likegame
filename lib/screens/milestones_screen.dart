@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
-import '../services/skill_service.dart';
+import '../services/stat_service.dart';
 import '../services/event_service.dart';
 
 class MilestonesScreen extends StatefulWidget {
@@ -26,7 +26,7 @@ class MilestonesScreen extends StatefulWidget {
 
 class _MilestonesScreenState extends State<MilestonesScreen> {
   final AuthService _authService = AuthService();
-  final SkillService _skillService = SkillService();
+  final StatService _statService = StatService();
   final EventService _eventService = EventService();
   
   List<Milestone> _milestones = [];
@@ -44,8 +44,8 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
       final user = _authService.currentUser;
       if (user == null) return;
 
-      final milestones = await _skillService.getMilestones(widget.skill.id);
-      final completedIds = await _skillService.getCompletedMilestoneIds(user.id, widget.skill.id);
+      final milestones = await _statService.getMilestones(widget.skill.id);
+      final completedIds = await _statService.getCompletedMilestoneIds(user.id, widget.skill.id);
 
       // 현재 랭크에 해당하는 마일스톤만 필터링하고 레벨 순서대로 정렬
       final filteredMilestones = milestones
@@ -126,7 +126,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
           return;
         }
 
-        await _skillService.uncompleteMilestone(user.id, milestone.id);
+        await _statService.uncompleteMilestone(user.id, milestone.id);
         setState(() {
           _completedMilestoneIds.remove(milestone.id);
         });
@@ -147,7 +147,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
           );
         }
       } else {
-        await _skillService.completeMilestone(user.id, milestone.id);
+        await _statService.completeMilestone(user.id, milestone.id);
         setState(() {
           _completedMilestoneIds.add(milestone.id);
         });

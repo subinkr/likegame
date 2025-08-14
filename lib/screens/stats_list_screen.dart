@@ -2,30 +2,28 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
-import '../services/skill_service.dart';
+import '../services/stat_service.dart';
 import '../services/event_service.dart';
-import 'skill_ranks_screen.dart';
+import 'stat_ranks_screen.dart';
 
-class SkillsScreen extends StatefulWidget {
-  const SkillsScreen({super.key});
+class StatsListScreen extends StatefulWidget {
+  const StatsListScreen({super.key});
 
   @override
-  State<SkillsScreen> createState() => _SkillsScreenState();
+  State<StatsListScreen> createState() => _StatsListScreenState();
 }
 
-class _SkillsScreenState extends State<SkillsScreen> {
+class _StatsListScreenState extends State<StatsListScreen> {
   final AuthService _authService = AuthService();
-  final SkillService _skillService = SkillService();
+  final StatService _statService = StatService();
   final EventService _eventService = EventService();
   StreamSubscription? _milestoneSubscription;
   final TextEditingController _searchController = TextEditingController();
   
-  List<Category> _categories = [];
   List<Skill> _allSkills = [];
   List<Skill> _filteredSkills = [];
   List<SkillProgress> _skillsProgress = [];
   
-  String? _selectedCategoryId;
   bool _isLoading = true;
 
   @override
@@ -55,13 +53,11 @@ class _SkillsScreenState extends State<SkillsScreen> {
       final user = _authService.currentUser;
       if (user == null) return;
 
-      final categories = await _skillService.getCategories();
-      final skills = await _skillService.getSkills();
-      final skillsProgress = await _skillService.getUserSkillsProgress(user.id);
+      final skills = await _statService.getSkills();
+      final skillsProgress = await _statService.getUserSkillsProgress(user.id);
 
       if (mounted) {
         setState(() {
-          _categories = categories;
           _allSkills = skills;
           _filteredSkills = skills;
           _skillsProgress = skillsProgress;
@@ -86,12 +82,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
   void _filterSkills() {
     setState(() {
       _filteredSkills = _allSkills.where((skill) {
-        final matchesCategory = _selectedCategoryId == null || 
-            skill.categoryId == _selectedCategoryId;
         final matchesSearch = _searchController.text.isEmpty ||
             skill.name.toLowerCase().contains(_searchController.text.toLowerCase());
         
-        return matchesCategory && matchesSearch;
+        return matchesSearch;
       }).toList();
     });
   }
@@ -127,7 +121,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SkillRanksScreen(
+        builder: (context) => StatRanksScreen(
           skill: skill,
           onDataChanged: _loadData, // 데이터 변경 시 새로고침
         ),
@@ -147,7 +141,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
       onRefresh: _loadData,
       child: Column(
         children: [
-          // 검색 및 필터 섹션
+          // 검색 섹션
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
@@ -157,7 +151,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: '스킬 검색...',
+                    hintText: '스탯 검색...',
                     prefixIcon: const Icon(Icons.search),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -169,46 +163,11 @@ class _SkillsScreenState extends State<SkillsScreen> {
                   ),
                   onChanged: (value) => _filterSkills(),
                 ),
-                
-                const SizedBox(height: 12),
-                
-                // 카테고리 필터
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: _selectedCategoryId,
-                      hint: const Text('모든 카테고리'),
-                      isExpanded: true,
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('모든 카테고리'),
-                        ),
-                        ..._categories.map((category) => DropdownMenuItem<String?>(
-                          value: category.id,
-                          child: Text(category.name),
-                        )),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCategoryId = value;
-                        });
-                        _filterSkills();
-                      },
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
           
-          // 스킬 그리드
+                      // 스탯 그리드
           Expanded(
             child: _filteredSkills.isEmpty
                 ? _buildEmptyState()
@@ -284,7 +243,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
             
             const SizedBox(height: 16),
             
-            // 스킬명
+            // 스탯명
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
@@ -300,21 +259,6 @@ class _SkillsScreenState extends State<SkillsScreen> {
             ),
             
             const SizedBox(height: 8),
-            
-            // 카테고리명
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                skill.category?.name ?? '',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
             
             const SizedBox(height: 12),
             

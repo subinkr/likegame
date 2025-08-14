@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'stats_screen.dart';
-import 'skills_screen.dart';
+import 'dashboard_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,13 +14,11 @@ class _MainScreenState extends State<MainScreen> {
   final AuthService _authService = AuthService();
 
   final List<Widget> _screens = [
-    const StatsScreen(),
-    const SkillsScreen(),
+    const DashboardScreen(),
   ];
 
   final List<String> _titles = [
     '스탯',
-    '스킬',
   ];
 
   Future<void> _showLogoutDialog() async {
@@ -99,17 +96,12 @@ class _MainScreenState extends State<MainScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildNavItem(
                   icon: Icons.bar_chart,
                   label: '스탯',
                   index: 0,
-                ),
-                _buildNavItem(
-                  icon: Icons.list_alt,
-                  label: '스킬',
-                  index: 1,
                 ),
               ],
             ),
