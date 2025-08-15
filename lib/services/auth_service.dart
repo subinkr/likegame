@@ -205,22 +205,24 @@ class AuthService {
       // 사용자 데이터 삭제 (프로필, 마일스톤, 스킬, 퀘스트 등)
       await _deleteUserData(user.id);
 
-      // 계정 비활성화 - 더 간단한 방법
+      // 계정 비활성화 - 가장 간단한 방법
       try {
+        // 이메일을 무효한 주소로 변경
         await _supabase.auth.updateUser(
           UserAttributes(
             email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
           ),
         );
       } catch (e) {
-        // 이메일 변경이 실패해도 계속 진행
         print('이메일 변경 실패: $e');
+        // 이메일 변경이 실패해도 계속 진행
       }
 
       // 로그아웃
       await _supabase.auth.signOut();
       
     } on AuthException catch (e) {
+      print('AuthException: ${e.message}');
       switch (e.message) {
         case 'Invalid login credentials':
           throw Exception('비밀번호가 올바르지 않습니다.');
@@ -234,6 +236,7 @@ class AuthService {
           throw Exception('계정 삭제 실패: ${e.message}');
       }
     } catch (e) {
+      print('General Exception: $e');
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
         throw Exception('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
       }
