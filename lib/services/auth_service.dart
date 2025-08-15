@@ -121,7 +121,16 @@ class AuthService {
           .eq('id', user)
           .single();
 
-      return UserProfile.fromJson(response);
+      final profile = UserProfile.fromJson(response);
+      
+      // 탈퇴한 계정인지 확인
+      if (profile.isDeleted) {
+        print('탈퇴한 계정 감지');
+        await _supabase.auth.signOut();
+        throw Exception('탈퇴한 계정입니다.');
+      }
+      
+      return profile;
     } catch (e) {
       print('프로필 가져오기 실패: $e');
       // 406 오류나 다른 오류 시 로그아웃 처리
@@ -238,20 +247,18 @@ class AuthService {
           print('계정 삭제 성공');
         } catch (e) {
           print('계정 삭제 실패: $e');
-          // 계정 삭제 실패 시 비활성화 (이메일 변경 없이)
+          // 계정 삭제 실패 시 is_deleted = true로 설정
           try {
-            // 이메일 변경 대신 다른 방식으로 비활성화
-            // 예: 프로필에서 삭제 표시
             await _supabase
                 .from('profiles')
                 .update({
-                  'nickname': '탈퇴한 사용자',
+                  'is_deleted': true,
                   'updated_at': DateTime.now().toIso8601String(),
                 })
                 .eq('id', user.id);
-            print('계정 비활성화 성공 (프로필 업데이트)');
+            print('계정 탈퇴 처리 성공 (is_deleted = true)');
           } catch (e2) {
-            print('계정 비활성화 실패: $e2');
+            print('계정 탈퇴 처리 실패: $e2');
           }
         }
         

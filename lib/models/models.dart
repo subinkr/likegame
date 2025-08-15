@@ -6,6 +6,7 @@ class UserProfile {
   final String nickname;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isDeleted;
 
   UserProfile({
     required this.id,
@@ -13,6 +14,7 @@ class UserProfile {
     required this.nickname,
     required this.createdAt,
     required this.updatedAt,
+    required this.isDeleted,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -22,6 +24,7 @@ class UserProfile {
       nickname: json['nickname'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      isDeleted: json['is_deleted'] ?? false,
     );
   }
 
@@ -32,6 +35,7 @@ class UserProfile {
       'nickname': nickname,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'is_deleted': isDeleted,
     };
   }
 }

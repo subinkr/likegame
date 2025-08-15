@@ -106,12 +106,11 @@ serve(async (req) => {
             if (deleteUserError) {
               console.error('Failed to delete user with admin permissions:', deleteUserError)
               
-              // If admin delete fails, try alternative approach
-              // Update profile to mark as deleted instead of changing email
+              // If admin delete fails, mark as deleted using is_deleted column
               const { error: updateError } = await supabaseClient
                 .from('profiles')
                 .update({
-                  nickname: '탈퇴한 사용자',
+                  is_deleted: true,
                   updated_at: new Date().toISOString(),
                 })
                 .eq('id', userId)
@@ -121,7 +120,7 @@ serve(async (req) => {
                 throw new Error(`Failed to delete user: ${deleteUserError.message}`)
               }
               
-              console.log('User marked as deleted via profile update')
+              console.log('User marked as deleted via is_deleted flag')
             }
 
     console.log('User account deleted successfully')
