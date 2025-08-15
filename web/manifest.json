@@ -1,11 +1,11 @@
 {
-    "name": "likegame",
-    "short_name": "likegame",
+    "name": "Like Game - 인생을 게임처럼",
+    "short_name": "Like Game",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1A237E",
+    "theme_color": "#1A237E",
+    "description": "인생을 게임처럼 - 스탯을 수치화하고 성장하세요",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
