@@ -30,6 +30,10 @@ serve(async (req) => {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     )
 
