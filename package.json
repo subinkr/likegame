@@ -1,0 +1,11 @@
+{
+  "name": "likegame",
+  "version": "1.0.0",
+  "description": "Like Game - 인생을 게임처럼",
+  "scripts": {
+    "vercel-build": "echo 'Flutter web build completed'"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
