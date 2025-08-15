@@ -226,25 +226,18 @@ class AuthService {
       await _deleteUserData(user.id);
       print('사용자 데이터 삭제 완료');
 
-      // 3. 계정 완전 삭제 시도
+      // 3. is_deleted = true로 설정 (계정 완전 삭제 없이)
       try {
-        await _supabase.auth.admin.deleteUser(user.id);
-        print('계정 완전 삭제 성공');
+        await _supabase
+            .from('profiles')
+            .update({
+              'is_deleted': true,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', user.id);
+        print('계정 탈퇴 처리 성공 (is_deleted = true)');
       } catch (e) {
-        print('계정 완전 삭제 실패: $e');
-        // 계정 삭제 실패 시 is_deleted = true로 설정
-        try {
-          await _supabase
-              .from('profiles')
-              .update({
-                'is_deleted': true,
-                'updated_at': DateTime.now().toIso8601String(),
-              })
-              .eq('id', user.id);
-          print('계정 탈퇴 처리 성공 (is_deleted = true)');
-        } catch (e2) {
-          print('계정 탈퇴 처리 실패: $e2');
-        }
+        print('계정 탈퇴 처리 실패: $e');
       }
 
       // 4. 로그아웃
