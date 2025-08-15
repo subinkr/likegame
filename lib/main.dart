@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'config/supabase_config.dart';
 import 'screens/auth/login_screen.dart';
@@ -11,9 +10,6 @@ import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // .env 파일 로드
-  await dotenv.load(fileName: ".env");
   
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,

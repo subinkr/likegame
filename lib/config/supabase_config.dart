@@ -1,22 +1,10 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 class SupabaseConfig {
-  // .env 파일에서 환경변수 로드
-  static String get supabaseUrl {
-    return dotenv.env['SUPABASE_URL'] ?? 'https://your-project-ref.supabase.co';
-  }
-  
-  static String get supabaseAnonKey {
-    return dotenv.env['SUPABASE_ANON_KEY'] ?? 'your-anon-key-here';
-  }
-  
-  // 환경변수 로드 확인
+  // Supabase 설정 (anon key는 안전함)
+  static const String supabaseUrl = 'https://lzaijefnntivfcnhrbks.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6YWlqZWZubnRpdmZjbmhyYmtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNDU3ODksImV4cCI6MjA3MDYyMTc4OX0.t52NWKpBHkLXY5Z6CdXQOJD6aG1mS1Yi76N3fv3Xp90';
+
+  // 설정 확인
   static bool get isConfigured {
-    final url = dotenv.env['SUPABASE_URL'];
-    final key = dotenv.env['SUPABASE_ANON_KEY'];
-    return url != null && key != null && 
-           url.isNotEmpty && key.isNotEmpty &&
-           !url.contains('dummy') && 
-           !key.contains('dummy');
+    return supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
   }
 }
