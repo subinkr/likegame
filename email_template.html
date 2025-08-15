@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Like Game 이메일 인증</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1A237E 0%, #3949AB 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #1A237E, #3949AB, #5C6BC0, #7986CB, #9FA8DA);
+        }
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #1A237E, #3949AB);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+        }
+        .game-icon {
+            font-size: 4em;
+            margin: 20px 0;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        .welcome-text {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .highlight {
+            color: #1A237E;
+            font-weight: bold;
+        }
+        .verify-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #1A237E, #3949AB);
+            color: white !important;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin: 30px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(26, 35, 126, 0.4);
+            border: none;
+            cursor: pointer;
+        }
+        .verify-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(26, 35, 126, 0.6);
+            color: white !important;
+            text-decoration: none;
+        }
+        .verify-button:visited {
+            color: white !important;
+            text-decoration: none;
+        }
+        .verify-button:link {
+            color: white !important;
+            text-decoration: none;
+        }
+        .features {
+            margin: 30px 0;
+            text-align: left;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .feature-icon {
+            font-size: 1.5em;
+            margin-right: 15px;
+            width: 30px;
+            text-align: center;
+        }
+        .feature-text {
+            color: #555;
+            font-size: 0.95em;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #888;
+            font-size: 0.9em;
+        }
+        .stats-preview {
+            background: linear-gradient(135deg, #1A237E, #3949AB);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .stats-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.9;
+        }
+        .rank-system {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .rank-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #1A237E;
+            margin-bottom: 15px;
+        }
+        .rank-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        .rank-item {
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .rank-f { background: #ffebee; color: #c62828; }
+        .rank-e { background: #fff3e0; color: #ef6c00; }
+        .rank-d { background: #fff8e1; color: #f57f17; }
+        .rank-c { background: #e8f5e8; color: #2e7d32; }
+        .rank-b { background: #e3f2fd; color: #1565c0; }
+        .rank-a { background: #f3e5f5; color: #7b1fa2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎮 Like Game</div>
+        <div class="subtitle">인생을 게임처럼</div>
+        
+        <div class="game-icon">⚔️</div>
+        
+        <div class="welcome-text">
+            안녕하세요! <span class="highlight">Like Game</span>에 오신 것을 환영합니다! 🎉
+        </div>
+        
+        <div class="welcome-text">
+            이메일 인증을 완료하면 32개의 스탯을 수치화하고 성장시킬 수 있습니다.
+        </div>
+        
+        <div class="features">
+            <div class="feature-item">
+                <div class="feature-icon">💪</div>
+                <div class="feature-text">32개 스탯 시스템: 근력, 지혜, 민첩성 등 다양한 능력을 수치화</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📊</div>
+                <div class="feature-text">마일스톤 시스템: 각 스탯마다 100개의 마일스톤으로 세분화</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🏆</div>
+                <div class="feature-text">랭크 시스템: F → E → D → C → B → A 등급으로 성장</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📋</div>
+                <div class="feature-text">퀘스트 시스템: 개인 목표를 설정하고 달성해보세요</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🪪</div>
+                <div class="feature-text">스킬 관리: 자격증과 스킬을 등록하고 관리</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📈</div>
+                <div class="feature-text">진행률 추적: 실시간으로 성장 과정을 확인</div>
+            </div>
+        </div>
+        
+        <div class="rank-system">
+            <div class="rank-title">🏆 랭크 시스템</div>
+            <div class="rank-grid">
+                <div class="rank-item rank-f">F등급<br>0-19</div>
+                <div class="rank-item rank-e">E등급<br>20-39</div>
+                <div class="rank-item rank-d">D등급<br>40-59</div>
+                <div class="rank-item rank-c">C등급<br>60-79</div>
+                <div class="rank-item rank-b">B등급<br>80-99</div>
+                <div class="rank-item rank-a">A등급<br>100+</div>
+            </div>
+        </div>
+        
+        <div class="stats-preview">
+            <div class="stats-title">🎮 현재 당신의 상태는?</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">F</div>
+                    <div class="stat-label">시작 랭크</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">32</div>
+                    <div class="stat-label">사용 가능 스탯</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">완료 마일스톤</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="welcome-text">
+            이제 이메일을 인증하고 게임같은 인생을 시작해보세요!
+        </div>
+        
+        <a href="{{ .ConfirmationURL }}" class="verify-button">
+            이메일 인증하기
+        </a>
+        
+        <div class="footer">
+            <p>이 링크는 24시간 동안 유효합니다.</p>
+            <p>문의사항이 있으시면 언제든 연락주세요.</p>
+            <p>🎮 Like Game - 인생을 게임처럼</p>
+        </div>
+    </div>
+</body>
+</html>
