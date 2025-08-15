@@ -11,27 +11,27 @@ class UserProvider extends ChangeNotifier {
 
   UserProfile? get userProfile => _userProfile;
   bool get isLoading => _isLoading;
-  bool get isLoggedIn => _authService.currentUser != null;
+  bool get isLoggedIn => _userProfile != null && _authService.currentUser != null;
   String? get deletedAccountMessage => _deletedAccountMessage;
 
   // 사용자 프로필 로드
   Future<void> loadUserProfile() async {
+    _isLoading = true;
+    notifyListeners();
+    
     try {
       final profile = await _authService.getUserProfile();
       if (profile != null) {
         _userProfile = profile;
-        _isLoggedIn = true;
         _deletedAccountMessage = null; // 탈퇴 메시지 초기화
       } else {
         // 프로필이 null인 경우 (탈퇴한 계정 또는 오류)
         _userProfile = null;
-        _isLoggedIn = false;
         _deletedAccountMessage = '탈퇴한 계정입니다.';
       }
     } catch (e) {
       print('UserProvider - 프로필 로드 실패');
       _userProfile = null;
-      _isLoggedIn = false;
       _deletedAccountMessage = '프로필 로드에 실패했습니다.';
     } finally {
       _isLoading = false;

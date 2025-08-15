@@ -52,7 +52,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadData() async {
     try {
       final user = _authService.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
       final allSkills = await _statService.getUserSkillsProgress(user.id);
       final priorities = await _priorityService.getUserStatPriorities(user.id);
@@ -110,7 +117,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _updatePriorityOrder(String skillId, int newOrder) async {
     try {
-      final userId = _authService.currentUser!.id;
+      final user = _authService.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('로그인이 필요합니다'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      final userId = user.id;
       
       // 새로운 순서로 정렬된 스탯 목록 생성
       final List<SkillProgress> newOrderedSkills = [];
@@ -122,8 +140,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       for (int i = 0; i < _sortedSkills.length; i++) {
         if (i == newOrder) {
           // 드래그된 아이템을 이 위치에 삽입
-          final draggedSkill = _sortedSkills.firstWhere((skill) => skill.skillId == skillId);
-          newOrderedSkills.add(draggedSkill);
+          try {
+            final draggedSkill = _sortedSkills.firstWhere((skill) => skill.skillId == skillId);
+            newOrderedSkills.add(draggedSkill);
+          } catch (e) {
+            // skillId를 찾을 수 없는 경우 (이론적으로는 발생하지 않아야 함)
+            print('드래그된 스킬을 찾을 수 없습니다: $skillId');
+            continue;
+          }
         }
         
         // 다른 아이템들 추가
