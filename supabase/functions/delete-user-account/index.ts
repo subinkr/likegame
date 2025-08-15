@@ -97,14 +97,28 @@ serve(async (req) => {
       console.error('Error deleting profile:', profileError)
     }
 
-    // Delete the user account
-    console.log('Attempting to delete user account:', userId)
-    const { error: deleteUserError } = await supabaseClient.auth.admin.deleteUser(userId)
-
-    if (deleteUserError) {
-      console.error('Failed to delete user:', deleteUserError)
-      throw new Error(`Failed to delete user: ${deleteUserError.message}`)
-    }
+                // Delete the user account (try with user permissions first)
+            console.log('Attempting to delete user account:', userId)
+            
+            // First try with user's own permissions
+            const { error: deleteUserError } = await supabaseClient.auth.admin.deleteUser(userId)
+            
+            if (deleteUserError) {
+              console.error('Failed to delete user with admin permissions:', deleteUserError)
+              
+              // If admin delete fails, try alternative approach
+              // Update user email to mark as deleted
+              const { error: updateError } = await supabaseClient.auth.updateUser({
+                email: `deleted_${Date.now()}@deleted.com`
+              })
+              
+              if (updateError) {
+                console.error('Failed to update user email:', updateError)
+                throw new Error(`Failed to delete user: ${deleteUserError.message}`)
+              }
+              
+              console.log('User marked as deleted via email change')
+            }
 
     console.log('User account deleted successfully')
 

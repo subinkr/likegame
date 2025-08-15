@@ -220,25 +220,32 @@ class AuthService {
         print('오류 타입: ${e.runtimeType}');
         print('오류 상세: ${e.toString()}');
         
-        // Edge Function 실패 시 계정 비활성화 시도
-        print('Edge Function 실패, 계정 비활성화 시도...');
+        // Edge Function 실패 시 직접 계정 삭제 시도
+        print('Edge Function 실패, 직접 계정 삭제 시도...');
         await _deleteUserData(user.id);
         
-        // 계정 비활성화 (이메일 변경)
+        // 직접 계정 삭제 시도 (일반 사용자 권한으로)
         try {
-          await _supabase.auth.updateUser(
-            UserAttributes(
-              email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
-            ),
-          );
-          print('계정 비활성화 성공');
+          await _supabase.auth.admin.deleteUser(user.id);
+          print('계정 삭제 성공');
         } catch (e) {
-          print('계정 비활성화 실패: $e');
+          print('계정 삭제 실패: $e');
+          // 계정 삭제 실패 시 비활성화
+          try {
+            await _supabase.auth.updateUser(
+              UserAttributes(
+                email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
+              ),
+            );
+            print('계정 비활성화 성공');
+          } catch (e2) {
+            print('계정 비활성화 실패: $e2');
+          }
         }
         
         // 로그아웃
         await _supabase.auth.signOut();
-        print('로그아웃 완료 (계정 비활성화됨)');
+        print('로그아웃 완료');
         return;
       }
       
