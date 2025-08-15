@@ -19,6 +19,9 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Edge Function 시작')
+    console.log('요청 헤더:', Object.fromEntries(req.headers.entries()))
+    
     // Create a Supabase client with the Auth context of the function
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

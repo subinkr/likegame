@@ -8,6 +8,14 @@
   ],
   "routes": [
     {
+      "src": "/manifest.json",
+      "dest": "/build/web/manifest.json",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json"
+      }
+    },
+    {
       "src": "/(.*)",
       "dest": "/build/web/$1"
     }

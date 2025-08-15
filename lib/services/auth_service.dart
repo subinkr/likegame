@@ -217,7 +217,15 @@ class AuthService {
         print('계정 탈퇴 완료 (계정 완전 삭제됨)');
       } catch (e) {
         print('Edge Function 오류: $e');
-        throw Exception('계정 삭제 실패: $e');
+        print('오류 타입: ${e.runtimeType}');
+        print('오류 상세: ${e.toString()}');
+        
+        // Edge Function 실패 시 기존 방식으로 데이터만 삭제
+        print('Edge Function 실패, 데이터만 삭제로 대체...');
+        await _deleteUserData(user.id);
+        await _supabase.auth.signOut();
+        print('데이터 삭제 완료 (계정은 유지)');
+        return;
       }
       
     } on AuthException catch (e) {
