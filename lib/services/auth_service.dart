@@ -190,7 +190,7 @@ class AuthService {
     }
   }
 
-  // 계정 탈퇴 (완전히 다른 접근 - 데이터만 삭제)
+  // 계정 탈퇴 (Edge Function 사용)
   Future<void> deleteAccount(String password) async {
     try {
       final user = currentUser;
@@ -205,13 +205,17 @@ class AuthService {
       );
       print('비밀번호 확인 완료');
 
-      // 2. 사용자 데이터 삭제 (이것만 실행)
-      await _deleteUserData(user.id);
-      print('사용자 데이터 삭제 완료');
+      // 2. Edge Function을 통해 계정 완전 삭제
+      final response = await _supabase.functions.invoke(
+        'delete-user-account',
+        body: {},
+      );
 
-      // 3. 로그아웃 (Supabase API 호출 최소화)
-      await _supabase.auth.signOut();
-      print('계정 탈퇴 완료 (데이터만 삭제됨)');
+      if (response.error != null) {
+        throw Exception('계정 삭제 실패: ${response.error}');
+      }
+
+      print('계정 탈퇴 완료 (계정 완전 삭제됨)');
       
     } on AuthException catch (e) {
       print('AuthException: ${e.message}');
