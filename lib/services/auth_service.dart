@@ -256,7 +256,7 @@ class AuthService {
       await _supabase.from('skills').delete().eq('user_id', userId);
       await _supabase.from('quests').delete().eq('user_id', userId);
       
-      // 프로필은 마지막에 삭제
+      // 프로필은 마지막에 삭제 (403 오류 방지)
       try {
         await _supabase.from('profiles').delete().eq('id', userId);
       } catch (e) {
