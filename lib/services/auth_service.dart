@@ -207,7 +207,7 @@ class AuthService {
     }
   }
 
-  // 계정 탈퇴 (Edge Function 사용)
+  // 계정 탈퇴 (클라이언트 직접 처리)
   Future<void> deleteAccount(String password) async {
     try {
       final user = currentUser;
@@ -222,52 +222,35 @@ class AuthService {
       );
       print('비밀번호 확인 완료');
 
-      // 2. Edge Function을 통해 계정 완전 삭제
-      print('Edge Function 호출 시작...');
-      try {
-        final response = await _supabase.functions.invoke(
-          'delete-user-account',
-          body: {},
-        );
+      // 2. 사용자 데이터 삭제
+      await _deleteUserData(user.id);
+      print('사용자 데이터 삭제 완료');
 
-        print('Edge Function 응답: ${response.data}');
-        print('계정 탈퇴 완료 (계정 완전 삭제됨)');
+      // 3. 계정 완전 삭제 시도
+      try {
+        await _supabase.auth.admin.deleteUser(user.id);
+        print('계정 완전 삭제 성공');
       } catch (e) {
-        print('Edge Function 오류: $e');
-        print('오류 타입: ${e.runtimeType}');
-        print('오류 상세: ${e.toString()}');
-        
-        // Edge Function 실패 시 직접 계정 삭제 시도
-        print('Edge Function 실패, 직접 계정 삭제 시도...');
-        await _deleteUserData(user.id);
-        
-        // 직접 계정 삭제 시도 (일반 사용자 권한으로)
+        print('계정 완전 삭제 실패: $e');
+        // 계정 삭제 실패 시 is_deleted = true로 설정
         try {
-          await _supabase.auth.admin.deleteUser(user.id);
-          print('계정 삭제 성공');
-        } catch (e) {
-          print('계정 삭제 실패: $e');
-          // 계정 삭제 실패 시 is_deleted = true로 설정
-          try {
-            await _supabase
-                .from('profiles')
-                .update({
-                  'is_deleted': true,
-                  'updated_at': DateTime.now().toIso8601String(),
-                })
-                .eq('id', user.id);
-            print('계정 탈퇴 처리 성공 (is_deleted = true)');
-          } catch (e2) {
-            print('계정 탈퇴 처리 실패: $e2');
-          }
+          await _supabase
+              .from('profiles')
+              .update({
+                'is_deleted': true,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('id', user.id);
+          print('계정 탈퇴 처리 성공 (is_deleted = true)');
+        } catch (e2) {
+          print('계정 탈퇴 처리 실패: $e2');
         }
-        
-        // 로그아웃
-        await _supabase.auth.signOut();
-        print('로그아웃 완료');
-        return;
       }
-      
+
+      // 4. 로그아웃
+      await _supabase.auth.signOut();
+      print('계정 탈퇴 완료');
+
     } on AuthException catch (e) {
       print('AuthException: ${e.message}');
       switch (e.message) {
