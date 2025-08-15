@@ -40,10 +40,12 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
+      console.log('사용자 인증 실패:', userError)
       throw new Error('Unauthorized')
     }
 
     const userId = user.id
+    console.log('사용자 ID:', userId)
 
     // Delete user data in order
     const { error: milestonesError } = await supabaseClient
