@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
@@ -8,7 +7,6 @@ import '../services/stat_service.dart';
 import '../services/priority_service.dart';
 import '../services/event_service.dart';
 import '../utils/text_utils.dart';
-import '../providers/user_provider.dart';
 import 'milestones_screen.dart';
 
 class DashboardScreen extends StatefulWidget {

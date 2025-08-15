@@ -20,7 +20,7 @@ class ThemeProvider extends ChangeNotifier {
       _themeMode = ThemeMode.values[themeIndex];
       notifyListeners();
     } catch (e) {
-      print('테마 로드 실패: $e');
+      // 테마 로드 실패 시 기본값 사용
     }
   }
 
@@ -41,7 +41,7 @@ class ThemeProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_themeKey, _themeMode.index);
     } catch (e) {
-      print('테마 저장 실패: $e');
+      // 테마 저장 실패 시 무시
     }
   }
 
