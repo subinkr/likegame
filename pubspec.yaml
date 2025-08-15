@@ -1,5 +1,5 @@
 name: likegame
-description: "인생을 게임처럼 - 스탯을 수치화하고 성장하세요"
+description: "인생을 게임처럼 - 스탯을 수치화하고 성장하세요. https://likegame.life"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
