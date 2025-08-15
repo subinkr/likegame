@@ -76,16 +76,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
         final session = authState?.session;
         
         if (session != null) {
-          // 로그인 시 프로필 로드 및 검증
+          // 로그인 시 프로필 로드
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             final userProvider = context.read<UserProvider>();
             await userProvider.loadUserProfile();
-            
-            // 탈퇴한 계정인 경우 로그아웃 처리
-            if (userProvider.deletedAccountMessage != null) {
-              print('AuthWrapper - 탈퇴한 계정 감지, 로그아웃 처리');
-              await _authService.signOut();
-            }
           });
           return const MainScreen();
         } else {
