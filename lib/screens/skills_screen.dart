@@ -30,11 +30,11 @@ class _SkillsScreenState extends State<SkillsScreen> {
       
       if (userId != null) {
         final skills = await _skillService.getUserSkills(userId);
-        if (mounted) {
-          setState(() {
+      if (mounted) {
+        setState(() {
             _skills = skills;
-            _isLoading = false;
-          });
+          _isLoading = false;
+        });
         }
       }
     } catch (e) {
@@ -423,9 +423,9 @@ class _SkillsScreenState extends State<SkillsScreen> {
               onRefresh: _loadSkills,
               child: _skills.isEmpty
                   ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
                           Icon(
                             Icons.emoji_events_outlined,
                             size: 80,
@@ -446,9 +446,9 @@ class _SkillsScreenState extends State<SkillsScreen> {
                               fontSize: 14,
                               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                             ),
-                          ),
-                        ],
-                      ),
+                  ),
+                ],
+              ),
                     )
                                     : ListView.builder(
                       padding: const EdgeInsets.all(16),
@@ -478,10 +478,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
         contentPadding: const EdgeInsets.all(16),
         title: Text(
           skill.name.withKoreanWordBreak,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,7 +498,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
               const SizedBox(height: 4),
                               Text(
                   '만료일: ${skill.expiryDate!.year}-${skill.expiryDate!.month.toString().padLeft(2, '0')}-${skill.expiryDate!.day.toString().padLeft(2, '0')}',
-                  style: TextStyle(
+                style: TextStyle(
                     fontSize: 14,
                     color: isExpired ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     fontWeight: isExpired ? FontWeight.bold : FontWeight.normal,

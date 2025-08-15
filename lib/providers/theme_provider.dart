@@ -5,12 +5,18 @@ class ThemeProvider extends ChangeNotifier {
   static const String _themeKey = 'theme_mode';
   
   ThemeMode _themeMode = ThemeMode.light;
+  bool _isInitialized = false;
   
   ThemeMode get themeMode => _themeMode;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
+  bool get isInitialized => _isInitialized;
 
   ThemeProvider() {
-    _loadThemeMode();
+    _initializeTheme();
+  }
+
+  void _initializeTheme() async {
+    await _loadThemeMode();
   }
 
   Future<void> _loadThemeMode() async {
@@ -18,9 +24,23 @@ class ThemeProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final themeIndex = prefs.getInt(_themeKey) ?? 0;
       _themeMode = ThemeMode.values[themeIndex];
+      _isInitialized = true;
       notifyListeners();
     } catch (e) {
       // 테마 로드 실패 시 기본값 사용
+      _isInitialized = true;
+      notifyListeners();
+    }
+  }
+
+  // 앱 시작 시 즉시 테마 로드
+  static Future<ThemeMode> loadInitialTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final themeIndex = prefs.getInt(_themeKey) ?? 0;
+      return ThemeMode.values[themeIndex];
+    } catch (e) {
+      return ThemeMode.light;
     }
   }
 
