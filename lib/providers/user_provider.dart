@@ -25,7 +25,12 @@ class UserProvider extends ChangeNotifier {
       final profile = await _authService.getUserProfile();
       _userProfile = profile;
     } catch (e) {
-      // 프로필 로드 실패 시 무시
+      print('UserProvider - 프로필 로드 실패: $e');
+      // 406 오류나 다른 오류 시 프로필 초기화
+      if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
+        print('UserProvider - 406 오류 감지, 프로필 초기화');
+        _userProfile = null;
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

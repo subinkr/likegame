@@ -76,9 +76,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
         final session = authState?.session;
         
         if (session != null) {
-          // 로그인 시 프로필 로드
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.read<UserProvider>().loadUserProfile();
+          // 로그인 시 프로필 로드 및 검증
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            final userProvider = context.read<UserProvider>();
+            await userProvider.loadUserProfile();
+            
+            // 프로필 로드 실패 시 로그아웃 처리
+            if (userProvider.userProfile == null && userProvider.isLoggedIn) {
+              print('AuthWrapper - 프로필 로드 실패, 로그아웃 처리');
+              await _authService.signOut();
+            }
           });
           return const MainScreen();
         } else {

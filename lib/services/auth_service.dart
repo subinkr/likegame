@@ -123,6 +123,12 @@ class AuthService {
 
       return UserProfile.fromJson(response);
     } catch (e) {
+      print('프로필 가져오기 실패: $e');
+      // 406 오류나 다른 오류 시 로그아웃 처리
+      if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
+        print('406 오류 감지, 로그아웃 처리');
+        await _supabase.auth.signOut();
+      }
       return null;
     }
   }
