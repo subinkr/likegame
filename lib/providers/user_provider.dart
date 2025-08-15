@@ -20,23 +20,19 @@ class UserProvider extends ChangeNotifier {
       final profile = await _authService.getUserProfile();
       if (profile != null) {
         _userProfile = profile;
-        _isLoading = true;
-        notifyListeners();
+        _isLoggedIn = true;
+        _deletedAccountMessage = null; // 탈퇴 메시지 초기화
+      } else {
+        // 프로필이 null인 경우 (탈퇴한 계정 또는 오류)
+        _userProfile = null;
+        _isLoggedIn = false;
+        _deletedAccountMessage = '탈퇴한 계정입니다.';
       }
     } catch (e) {
       print('UserProvider - 프로필 로드 실패');
-      if (e.toString().contains('탈퇴한 계정입니다')) {
-        print('UserProvider - 탈퇴한 계정 감지');
-        _userProfile = null;
-        _deletedAccountMessage = '탈퇴한 계정입니다.';
-        notifyListeners();
-        rethrow;
-      }
-      // 406 오류 시 프로필 초기화
-      if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
-        print('UserProvider - 406 오류 감지, 프로필 초기화');
-        _userProfile = null;
-      }
+      _userProfile = null;
+      _isLoggedIn = false;
+      _deletedAccountMessage = '프로필 로드에 실패했습니다.';
     } finally {
       _isLoading = false;
       notifyListeners();

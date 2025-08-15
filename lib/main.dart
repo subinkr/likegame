@@ -79,22 +79,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
           // 로그인 시 프로필 로드 및 검증
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             final userProvider = context.read<UserProvider>();
-            try {
-              await userProvider.loadUserProfile();
-              
-              // 프로필 로드 실패 시 로그아웃 처리
-              if (userProvider.userProfile == null && userProvider.isLoggedIn) {
-                print('AuthWrapper - 프로필 로드 실패, 로그아웃 처리');
-                await _authService.signOut();
-              }
-            } catch (e) {
-              // 탈퇴한 계정 예외 처리
-              if (e.toString().contains('탈퇴한 계정입니다')) {
-                print('AuthWrapper - 탈퇴한 계정 감지, 로그아웃 처리');
-                await _authService.signOut();
-                // 탈퇴한 계정 메시지를 전역 상태로 저장
-                // (나중에 로그인 화면에서 표시)
-              }
+            await userProvider.loadUserProfile();
+            
+            // 탈퇴한 계정인 경우 로그아웃 처리
+            if (userProvider.deletedAccountMessage != null) {
+              print('AuthWrapper - 탈퇴한 계정 감지, 로그아웃 처리');
+              await _authService.signOut();
             }
           });
           return const MainScreen();

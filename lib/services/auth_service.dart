@@ -127,7 +127,7 @@ class AuthService {
       if (profile.isDeleted) {
         print('탈퇴한 계정 감지');
         await _supabase.auth.signOut();
-        throw Exception('탈퇴한 계정입니다.');
+        return null; // 예외 대신 null 반환
       }
       
       return profile;
@@ -137,8 +137,7 @@ class AuthService {
       if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
         print('406 오류 감지, 로그아웃 처리');
         await _supabase.auth.signOut();
-        // 탈퇴한 계정임을 나타내는 특별한 예외 던지기
-        throw Exception('탈퇴한 계정입니다.');
+        return null; // 예외 대신 null 반환
       }
       return null;
     }
