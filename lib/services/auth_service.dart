@@ -65,12 +65,30 @@ class AuthService {
         password: password,
       );
       
-      // 로그인 성공 후 탈퇴한 계정인지 확인
-      final profile = await getUserProfile();
-      if (profile == null) {
-        // 탈퇴한 계정이면 로그아웃하고 예외 던지기
+      // 로그인 성공 후 즉시 탈퇴한 계정인지 확인
+      try {
+        final user = response.user;
+        if (user != null) {
+          // is_deleted만 확인하는 간단한 쿼리
+          final result = await _supabase
+              .from('profiles')
+              .select('is_deleted')
+              .eq('id', user.id)
+              .single();
+          
+          if (result['is_deleted'] == true) {
+            // 탈퇴한 계정이면 즉시 로그아웃
+            await _supabase.auth.signOut();
+            throw Exception('탈퇴한 계정입니다.');
+          }
+        }
+      } catch (e) {
+        // 프로필 조회 실패 시에도 로그아웃
         await _supabase.auth.signOut();
-        throw Exception('탈퇴한 계정입니다.');
+        if (e.toString().contains('탈퇴한 계정입니다')) {
+          rethrow;
+        }
+        throw Exception('계정 정보를 확인할 수 없습니다.');
       }
       
       return response;
