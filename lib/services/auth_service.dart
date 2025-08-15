@@ -190,7 +190,7 @@ class AuthService {
     }
   }
 
-  // 계정 탈퇴 (데이터 초기화 방식)
+  // 계정 탈퇴 (데이터만 삭제하는 최소한의 방법)
   Future<void> deleteAccount(String password) async {
     try {
       final user = currentUser;
@@ -209,13 +209,9 @@ class AuthService {
       await _deleteUserData(user.id);
       print('사용자 데이터 삭제 완료');
 
-      // 3. 프로필 초기화 (삭제 대신 초기값으로 설정)
-      await _resetUserProfile(user.id);
-      print('프로필 초기화 완료');
-
-      // 4. 로그아웃
+      // 3. 로그아웃 (Supabase API 호출 최소화)
       await _supabase.auth.signOut();
-      print('계정 탈퇴 완료 (데이터 초기화됨)');
+      print('계정 탈퇴 완료 (데이터만 삭제됨)');
       
     } on AuthException catch (e) {
       print('AuthException: ${e.message}');
@@ -238,18 +234,7 @@ class AuthService {
     }
   }
 
-  // 프로필 초기화 (삭제 대신)
-  Future<void> _resetUserProfile(String userId) async {
-    try {
-      await _supabase.from('profiles').update({
-        'nickname': 'anonymous',
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', userId);
-      print('프로필 초기화 완료');
-    } catch (e) {
-      print('프로필 초기화 실패: $e');
-    }
-  }
+
 
   // 사용자 데이터 삭제 (새로운 방법)
   Future<void> _deleteUserData(String userId) async {
