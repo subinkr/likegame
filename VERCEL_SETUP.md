@@ -13,13 +13,13 @@
 ```bash
 vercel teams ls
 ```
-**현재 ORG_ID**: `subinkrs-projects`
+**현재 VERCEL_ORG_ID**: `subinkrs-projects`
 
 ### PROJECT_ID 확인
 ```bash
 vercel projects ls
 ```
-**현재 PROJECT_ID**: `prj_ar7rsPW9zxbrprVzytCONqHS5Vdv`
+**현재 VERCEL_PROJECT_ID**: `prj_ar7rsPW9zxbrprVzytCONqHS5Vdv`
 
 ## 3. GitHub Secrets 설정
 
@@ -29,12 +29,12 @@ GitHub 저장소 → Settings → Secrets and variables → Actions에서 다음
 - Name: `VERCEL_TOKEN`
 - Value: Vercel에서 생성한 토큰
 
-### ORG_ID
-- Name: `ORG_ID`
+### VERCEL_ORG_ID
+- Name: `VERCEL_ORG_ID`
 - Value: Vercel 조직 ID
 
-### PROJECT_ID
-- Name: `PROJECT_ID`
+### VERCEL_PROJECT_ID
+- Name: `VERCEL_PROJECT_ID`
 - Value: Vercel 프로젝트 ID
 
 ## 4. 설정 확인
