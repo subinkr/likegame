@@ -190,7 +190,7 @@ class AuthService {
     }
   }
 
-  // 계정 탈퇴 (새로운 간단한 방법)
+  // 계정 탈퇴 (데이터만 삭제하는 안전한 방법)
   Future<void> deleteAccount(String password) async {
     try {
       final user = currentUser;
@@ -205,21 +205,13 @@ class AuthService {
       );
       print('비밀번호 확인 완료');
 
-      // 2. 사용자 데이터 삭제
+      // 2. 사용자 데이터 삭제 (이것만 실행)
       await _deleteUserData(user.id);
       print('사용자 데이터 삭제 완료');
 
-      // 3. 계정 비활성화 (이메일 변경)
-      await _supabase.auth.updateUser(
-        UserAttributes(
-          email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
-        ),
-      );
-      print('계정 비활성화 완료');
-
-      // 4. 로그아웃
+      // 3. 로그아웃 (계정은 그대로 두고 데이터만 삭제)
       await _supabase.auth.signOut();
-      print('계정 탈퇴 완료');
+      print('계정 탈퇴 완료 (데이터만 삭제됨)');
       
     } on AuthException catch (e) {
       print('AuthException: ${e.message}');
