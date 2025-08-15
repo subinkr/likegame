@@ -190,7 +190,7 @@ class AuthService {
     }
   }
 
-  // 계정 탈퇴 (데이터만 삭제하는 최소한의 방법)
+  // 계정 탈퇴 (완전히 다른 접근 - 데이터만 삭제)
   Future<void> deleteAccount(String password) async {
     try {
       final user = currentUser;
@@ -198,7 +198,7 @@ class AuthService {
 
       print('계정 탈퇴 시작: ${user.email}');
 
-      // 1. 비밀번호 확인
+      // 1. 비밀번호 확인 (재인증)
       await _supabase.auth.signInWithPassword(
         email: user.email ?? '',
         password: password,
