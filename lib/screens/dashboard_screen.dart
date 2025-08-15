@@ -1,9 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/stat_service.dart';
+import '../services/priority_service.dart';
 import '../services/event_service.dart';
+import '../utils/text_utils.dart';
+import '../providers/user_provider.dart';
 import 'milestones_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -16,11 +21,13 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final AuthService _authService = AuthService();
   final StatService _statService = StatService();
+  final PriorityService _priorityService = PriorityService();
   final EventService _eventService = EventService();
+  final SupabaseClient _supabase = Supabase.instance.client;
   StreamSubscription? _milestoneSubscription;
   
-  UserProfile? _userProfile;
-  List<SkillProgress> _topSkills = [];
+  List<SkillProgress> _skillsWithMilestones = [];
+  List<UserStatPriority> _priorities = [];
   bool _isLoading = true;
 
   @override
@@ -49,14 +56,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final user = _authService.currentUser;
       if (user == null) return;
 
-      final profile = await _authService.getUserProfile();
-      
       final allSkills = await _statService.getUserSkillsProgress(user.id);
+      final priorities = await _priorityService.getUserStatPriorities(user.id);
+
+      // 마일스톤이 있는 스탯만 필터링
+      final skillsWithMilestones = allSkills.where((skill) => skill.completedCount >= 0).toList();
 
       if (mounted) {
         setState(() {
-          _userProfile = profile;
-          _topSkills = allSkills;
+          _skillsWithMilestones = skillsWithMilestones;
+          _priorities = priorities;
           _isLoading = false;
         });
       }
@@ -75,22 +84,116 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // 우선순위 순서대로 정렬된 스탯 목록 생성 (정순)
+  List<SkillProgress> get _sortedSkills {
+    final Map<String, int> priorityMap = {};
+    
+    // 우선순위 매핑 생성
+    for (final priority in _priorities) {
+      priorityMap[priority.statId] = priority.priorityOrder;
+    }
+    
+    // 우선순위 정순으로 정렬 (우선순위가 없으면 ㄱㄴㄷ 순서)
+    final sortedSkills = List<SkillProgress>.from(_skillsWithMilestones);
+    sortedSkills.sort((a, b) {
+      final aPriority = priorityMap[a.skillId] ?? 999;
+      final bPriority = priorityMap[b.skillId] ?? 999;
+      
+      // 우선순위가 같으면 ㄱㄴㄷ 순서로 정렬
+      if (aPriority == bPriority) {
+        return a.skillName.compareTo(b.skillName);
+      }
+      
+      return aPriority.compareTo(bPriority);
+    });
+    
+    return sortedSkills;
+  }
+
+  Future<void> _updatePriorityOrder(String skillId, int newOrder) async {
+    try {
+      final userId = _authService.currentUser!.id;
+      
+      // 새로운 순서로 정렬된 스탯 목록 생성
+      final List<SkillProgress> newOrderedSkills = [];
+      
+      // 드래그된 아이템을 제외한 나머지 아이템들
+      final otherSkills = _sortedSkills.where((skill) => skill.skillId != skillId).toList();
+      
+      // newOrder 위치에 드래그된 아이템 삽입
+      for (int i = 0; i < _sortedSkills.length; i++) {
+        if (i == newOrder) {
+          // 드래그된 아이템을 이 위치에 삽입
+          final draggedSkill = _sortedSkills.firstWhere((skill) => skill.skillId == skillId);
+          newOrderedSkills.add(draggedSkill);
+        }
+        
+        // 다른 아이템들 추가
+        if (i < otherSkills.length) {
+          newOrderedSkills.add(otherSkills[i]);
+        }
+      }
+      
+      // 새로운 우선순위로 업데이트
+      final List<Map<String, dynamic>> updates = [];
+      for (int i = 0; i < newOrderedSkills.length; i++) {
+        updates.add({
+          'user_id': userId,
+          'stat_id': newOrderedSkills[i].skillId,
+          'priority_order': i,
+        });
+      }
+      
+      // 기존 우선순위 모두 삭제
+      await _supabase
+          .from('user_stat_priorities')
+          .delete()
+          .eq('user_id', userId);
+      
+      // 새로운 우선순위들 한 번에 삽입
+      if (updates.isNotEmpty) {
+        await _supabase
+            .from('user_stat_priorities')
+            .insert(updates);
+      }
+      
+      // 데이터 다시 로드
+      await _loadData();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('우선순위가 업데이트되었습니다'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('우선순위 업데이트 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Color _getRankColor(String rank) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     switch (rank) {
       case 'F':
-        return Colors.grey;
+        return isDark ? const Color(0xFF9E9E9E) : Colors.grey;
       case 'E':
-        return Colors.brown;
+        return isDark ? const Color(0xFF8D6E63) : Colors.brown;
       case 'D':
-        return Colors.orange;
+        return isDark ? const Color(0xFFFF9800) : Colors.orange;
       case 'C':
-        return Colors.yellow[700]!;
+        return isDark ? const Color(0xFFFFC107) : Colors.yellow[700]!;
       case 'B':
-        return Colors.lightBlue;
+        return isDark ? const Color(0xFF03A9F4) : Colors.lightBlue;
       case 'A':
-        return Colors.purple;
+        return isDark ? const Color(0xFF9C27B0) : Colors.purple;
       default:
-        return Colors.grey;
+        return isDark ? const Color(0xFF9E9E9E) : Colors.grey;
     }
   }
 
@@ -185,7 +288,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     
     if (levels != null) {
       // Skill 객체 생성 (필요한 정보만 포함)
-      final skill = Skill(
+      final skill = Stat(
         id: skillProgress.skillId,
         name: skillProgress.skillName,
         key: skillProgress.skillName.toLowerCase().replaceAll(' ', '_'),
@@ -223,11 +326,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 사용자 정보
-            _buildUserSection(),
-            
-            const SizedBox(height: 20),
-            
             // 스탯 섹션
             _buildStatsSection(),
           ],
@@ -236,103 +334,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildUserSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).primaryColor,
-            Theme.of(context).primaryColor.withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Icon(
-              Icons.person,
-              size: 30,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: _showNicknameEditDialog,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                                 Text(
-                   _userProfile?.nickname ?? 'anonymous',
-                   style: const TextStyle(
-                     fontSize: 20,
-                     fontWeight: FontWeight.bold,
-                     color: Colors.white,
-                   ),
-                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.edit,
-                  color: Colors.white.withOpacity(0.8),
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '스탯을 성장시켜 랭크를 올려보세요!',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white.withOpacity(0.9),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildStatsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              Icons.list_alt,
-              color: Theme.of(context).primaryColor,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '스탯',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (_topSkills.isEmpty)
-          _buildEmptyState('아직 완료한 마일스톤이 없습니다.\n스탯을 선택해서 시작해보세요!')
+        if (_sortedSkills.isEmpty)
+          _buildEmptyState('마일스톤이 있는 스탯이 없습니다.\n스탯을 선택해서 시작해보세요!')
         else
           _buildStatsList(),
       ],
@@ -342,107 +351,144 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildStatsList() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        children: _topSkills.map((skill) => _buildStatsListItem(skill)).toList(),
-      ),
-    );
-  }
-
-  Widget _buildStatsListItem(SkillProgress skill) {
-    final isLast = _topSkills.last == skill;
-    
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _navigateToSkillMilestones(skill),
-        borderRadius: BorderRadius.vertical(
-          bottom: isLast ? const Radius.circular(12) : Radius.zero,
-          top: _topSkills.first == skill ? const Radius.circular(12) : Radius.zero,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            border: isLast ? null : Border(
-              bottom: BorderSide(
-                color: Colors.grey.withOpacity(0.2),
-                width: 1,
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _sortedSkills.length,
+        buildDefaultDragHandles: false,
+        onReorder: (oldIndex, newIndex) {
+          // ReorderableListView의 인덱스 조정
+          if (oldIndex < newIndex) {
+            newIndex -= 1;
+          }
+          
+          // 실제 원하는 위치 계산
+          int targetIndex = newIndex;
+          if (oldIndex < newIndex) {
+            // 아래로 드래그할 때는 그대로
+            targetIndex = newIndex;
+          } else {
+            // 위로 드래그할 때는 그대로
+            targetIndex = newIndex;
+          }
+          
+          final skill = _sortedSkills[oldIndex];
+          _updatePriorityOrder(skill.skillId, targetIndex);
+        },
+        itemBuilder: (context, index) {
+          final skill = _sortedSkills[index];
+          
+          return ReorderableDragStartListener(
+            key: ValueKey(skill.skillId),
+            index: index,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _navigateToSkillMilestones(skill),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // 랭크 배지
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getRankColor(skill.rank),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _getRankColor(skill.rank).withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            skill.rank,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        
+                        // 스탯 이름
+                        Expanded(
+                          child: Text(
+                            skill.skillName.withKoreanWordBreak,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        
+                        // 진행도
+                        Text(
+                          '${_getCurrentRankProgressCount(skill)}/${_getNextRankTarget(skill)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getRankColor(skill.rank),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  skill.rank,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  skill.skillName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Text(
-                '${_getCurrentRankProgressCount(skill)}/${_getNextRankTarget(skill)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
-
-
 
   Widget _buildEmptyState(String message) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
       ),
       child: Column(
         children: [
           Icon(
             Icons.info_outline,
             size: 48,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
           Text(
             message,
             style: TextStyle(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
@@ -450,79 +496,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _showNicknameEditDialog() async {
-    final TextEditingController nicknameController = TextEditingController(
-      text: _userProfile?.nickname ?? '',
-    );
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('닉네임 수정'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('새로운 닉네임을 입력해주세요'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nicknameController,
-              decoration: const InputDecoration(
-                labelText: '닉네임',
-                border: OutlineInputBorder(),
-              ),
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  Navigator.of(context).pop(value.trim());
-                }
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final nickname = nicknameController.text.trim();
-              if (nickname.isNotEmpty) {
-                Navigator.of(context).pop(nickname);
-              }
-            },
-            child: const Text('저장'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && result.isNotEmpty) {
-      try {
-        await _authService.updateProfile(nickname: result);
-        await _loadData(); // 프로필 다시 로드
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('닉네임이 수정되었습니다.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('닉네임 수정 실패: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
   }
 
   int _getNextRankTarget(SkillProgress skill) {

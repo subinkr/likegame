@@ -60,10 +60,11 @@ class AuthService {
     required String password,
   }) async {
     try {
-      return await _supabase.auth.signInWithPassword(
+      final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
+      return response;
     } on AuthException catch (e) {
       // Supabase 인증 오류 처리
       switch (e.message) {
@@ -109,15 +110,15 @@ class AuthService {
   }
 
   // 사용자 프로필 가져오기
-  Future<UserProfile?> getUserProfile() async {
+  Future<UserProfile?> getUserProfile([String? userId]) async {
     try {
-      final user = currentUser;
+      final user = userId != null ? userId : currentUser?.id;
       if (user == null) return null;
 
       final response = await _supabase
           .from('profiles')
           .select()
-          .eq('id', user.id)
+          .eq('id', user)
           .single();
 
       return UserProfile.fromJson(response);
@@ -146,15 +147,72 @@ class AuthService {
     }
   }
 
-  // 이메일 확인 상태 체크
-  bool get isEmailConfirmed => currentUser?.emailConfirmedAt != null;
-
-  // 비밀번호 재설정 이메일 발송
-  Future<void> resetPassword({required String email}) async {
+  // 사용자 프로필 업데이트 (userId 지정)
+  Future<void> updateUserProfile({
+    required String userId,
+    required String nickname,
+  }) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(email);
+      await _supabase
+          .from('profiles')
+          .update({
+            'nickname': nickname,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', userId);
     } catch (e) {
       rethrow;
     }
   }
+
+  // 비밀번호 변경
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(
+          password: newPassword,
+        ),
+      );
+    } on AuthException catch (e) {
+      switch (e.message) {
+        case 'Invalid login credentials':
+          throw Exception('현재 비밀번호가 올바르지 않습니다.');
+        case 'Password should be at least 6 characters':
+          throw Exception('새 비밀번호는 최소 6자 이상이어야 합니다.');
+        default:
+          throw Exception('비밀번호 변경 실패: ${e.message}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 계정 삭제
+  Future<void> deleteAccount(String password) async {
+    try {
+      // 먼저 현재 비밀번호로 로그인 확인
+      final user = currentUser;
+      if (user == null) throw Exception('로그인이 필요합니다.');
+
+      // 계정 삭제
+      await _supabase.auth.admin.deleteUser(user.id);
+    } on AuthException catch (e) {
+      switch (e.message) {
+        case 'Invalid login credentials':
+          throw Exception('비밀번호가 올바르지 않습니다.');
+        default:
+          throw Exception('계정 삭제 실패: ${e.message}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 이메일 확인 상태 체크
+  bool get isEmailConfirmed => currentUser?.emailConfirmedAt != null;
+
+
 }

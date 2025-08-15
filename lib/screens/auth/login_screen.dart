@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
+import '../../utils/text_utils.dart';
+import '../../providers/user_provider.dart';
+import '../../main.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -33,14 +37,23 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await _authService.signIn(
+      final response = await _authService.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
       
-      if (mounted) {
-        // 로그인 성공 시 MainScreen으로 자동 이동됨 (AuthWrapper에서 처리)
-      }
+              if (mounted) {
+          // 명시적으로 UserProvider 업데이트
+          context.read<UserProvider>().loadUserProfile();
+          
+          // AuthWrapper 강제 새로고침을 위해 잠시 대기 후 Navigator 사용
+          await Future.delayed(const Duration(milliseconds: 100));
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const AuthWrapper()),
+            );
+          }
+        }
     } catch (e) {
       if (mounted) {
         String errorMessage = '로그인에 실패했습니다.';
@@ -78,10 +91,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -100,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'LikeGame',
+                  'Like Game',
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).primaryColor,
@@ -109,9 +124,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '스탯을 수치화하고 성장하세요',
+                  '인생을 게임처럼'.withKoreanWordBreak,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -128,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
@@ -165,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                   ),
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
@@ -181,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 
-                const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                 
                 // 로그인 버튼
                 ElevatedButton(
@@ -219,7 +234,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Text(
                       '계정이 없으신가요? ',
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      ),
                     ),
                     TextButton(
                       onPressed: () {

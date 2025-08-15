@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import 'skills_screen.dart';
+import 'quests_screen.dart';
+import 'profile_screen.dart';
+import '../utils/text_utils.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,48 +17,24 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final AuthService _authService = AuthService();
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-  ];
-
-  final List<String> _titles = [
-    '스탯',
-  ];
-
-  Future<void> _showLogoutDialog() async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('로그아웃'),
-        content: const Text('정말 로그아웃하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('로그아웃'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldLogout == true && mounted) {
-      try {
-        await _authService.signOut();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('로그아웃 실패: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
+  @override
+  void initState() {
+    super.initState();
   }
+
+            final List<Widget> _screens = [
+            const DashboardScreen(),
+            const SkillsScreen(),
+            const QuestsScreen(),
+          ];
+
+          final List<String> _titles = [
+            '스탯'.withKoreanWordBreak,
+            '스킬'.withKoreanWordBreak,
+            '퀘스트'.withKoreanWordBreak,
+          ];
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -66,14 +46,23 @@ class _MainScreenState extends State<MainScreen> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _showLogoutDialog,
-            tooltip: '로그아웃',
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.person),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
+              tooltip: '프로필',
+            ),
           ),
         ],
-        backgroundColor: Colors.white,
-        foregroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -83,10 +72,18 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -96,14 +93,24 @@ class _MainScreenState extends State<MainScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildNavItem(
-                  icon: Icons.bar_chart,
-                  label: '스탯',
-                  index: 0,
-                ),
-              ],
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                        _buildNavItem(
+                          icon: Icons.description,
+                          label: '스탯'.withKoreanWordBreak,
+                          index: 0,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.badge,
+                          label: '스킬'.withKoreanWordBreak,
+                          index: 1,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.task_alt,
+                          label: '퀘스트'.withKoreanWordBreak,
+                          index: 2,
+                        ),
+                      ],
             ),
           ),
         ),
@@ -117,9 +124,13 @@ class _MainScreenState extends State<MainScreen> {
     required int index,
   }) {
     final isSelected = _currentIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     final color = isSelected 
         ? Theme.of(context).primaryColor 
-        : Colors.grey[600];
+        : isDark
+            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
+            : Theme.of(context).colorScheme.onSurface.withOpacity(0.7);
 
     return GestureDetector(
       onTap: () {
@@ -131,7 +142,9 @@ class _MainScreenState extends State<MainScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: BoxDecoration(
           color: isSelected 
-              ? Theme.of(context).primaryColor.withOpacity(0.1)
+              ? (isDark 
+                  ? Theme.of(context).primaryColor.withOpacity(0.2)
+                  : Theme.of(context).primaryColor.withOpacity(0.1))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),

@@ -4,8 +4,24 @@ import '../models/models.dart';
 class StatService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // 모든 스탯 가져오기
+  Future<List<Stat>> getAllStats() async {
+    try {
+      final response = await _supabase
+          .from('stats')
+          .select()
+          .order('name');
+
+      return (response as List)
+          .map((stat) => Stat.fromJson(stat))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // 모든 스탯 가져오기 (마일스톤이 있는 스탯만)
-  Future<List<Skill>> getSkills({String? searchQuery}) async {
+  Future<List<Stat>> getSkills({String? searchQuery}) async {
     try {
       // 먼저 마일스톤이 있는 스탯 ID들을 가져오기
               final milestonesResponse = await _supabase
@@ -28,8 +44,8 @@ class StatService {
             .inFilter('id', skillIdsWithMilestones.toList())
             .order('name');
 
-      List<Skill> skills = (response as List)
-          .map((skill) => Skill.fromJson(skill))
+      List<Stat> skills = (response as List)
+          .map((skill) => Stat.fromJson(skill))
           .toList();
 
       // 검색 필터링 적용
@@ -48,19 +64,16 @@ class StatService {
   // 특정 스탯의 마일스톤 가져오기
   Future<List<Milestone>> getMilestones(String skillId) async {
     try {
-      print('DEBUG: Getting milestones for skillId: $skillId');
       final response = await _supabase
           .from('milestones')
           .select()
           .eq('stat_id', skillId)
           .order('level');
 
-      print('DEBUG: Milestones response: ${response.length} items');
       return (response as List)
           .map((milestone) => Milestone.fromJson(milestone))
           .toList();
     } catch (e) {
-      print('DEBUG: Error getting milestones: $e');
       rethrow;
     }
   }
@@ -111,10 +124,8 @@ class StatService {
       if (response.isEmpty) return null;
 
       final progress = SkillProgress.fromJson(response.first);
-      print('DEBUG: Skill progress for $skillId - completed: ${progress.completedCount}, rank: ${progress.rank}');
       return progress;
     } catch (e) {
-      print('DEBUG: Error getting skill progress: $e');
       return null;
     }
   }
@@ -180,10 +191,8 @@ class StatService {
           .map((item) => item['milestone_id'] as String)
           .toSet();
       
-      print('DEBUG: Completed milestone IDs for $skillId: ${completedIds.length} items');
       return completedIds;
     } catch (e) {
-      print('DEBUG: Error getting completed milestone IDs: $e');
       return <String>{};
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../utils/text_utils.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -72,12 +73,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('회원가입'),
-        backgroundColor: Colors.transparent,
+        title: Text('회원가입'.withKoreanWordBreak),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -93,7 +98,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   '새 계정 만들기',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
+                    color: isDark 
+                        ? Theme.of(context).primaryColor.withOpacity(0.9)
+                        : Theme.of(context).primaryColor,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -107,12 +114,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _emailController,
                   decoration: InputDecoration(
                     labelText: '이메일',
-                    prefixIcon: const Icon(Icons.email_outlined),
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: isDark 
+                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
@@ -134,10 +146,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   decoration: InputDecoration(
                     labelText: '비밀번호',
-                    prefixIcon: const Icon(Icons.lock_outlined),
+                    prefixIcon: Icon(
+                      Icons.lock_outlined,
+                      color: isDark 
+                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        color: isDark 
+                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                       ),
                       onPressed: () {
                         setState(() {
@@ -149,7 +169,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                   ),
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
@@ -171,10 +191,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _confirmPasswordController,
                   decoration: InputDecoration(
                     labelText: '비밀번호 확인',
-                    prefixIcon: const Icon(Icons.lock_outlined),
+                    prefixIcon: Icon(
+                      Icons.lock_outlined,
+                      color: isDark 
+                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                        color: isDark 
+                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                       ),
                       onPressed: () {
                         setState(() {
@@ -186,7 +214,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                   ),
                   obscureText: _obscureConfirmPassword,
                   textInputAction: TextInputAction.done,
@@ -212,7 +240,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0,
+                    elevation: isDark ? 2 : 0,
+                    shadowColor: isDark ? Theme.of(context).primaryColor.withOpacity(0.3) : null,
                   ),
                   child: _isLoading
                       ? const SizedBox(
@@ -223,22 +252,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          '회원가입',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                                              : Text(
+                            '회원가입'.withKoreanWordBreak,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
                 ),
                 
                 const SizedBox(height: 24),
                 
                 // 이용약관 동의 텍스트
                 Text(
-                  '회원가입 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주됩니다.',
+                  '회원가입 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주됩니다.'.withKoreanWordBreak,
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: isDark 
+                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     fontSize: 12,
                   ),
                   textAlign: TextAlign.center,

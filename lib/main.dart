@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 import 'config/supabase_config.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
+import 'providers/user_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,21 +28,27 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'LikeGame',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A237E), // 브랜드 컬러
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-        ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'LikeGame',
+            theme: themeProvider.lightTheme,
+            darkTheme: themeProvider.darkTheme,
+            themeMode: themeProvider.themeMode,
+            initialRoute: '/',
+            routes: {
+              '/': (context) => const AuthWrapper(),
+              '/login': (context) => const LoginScreen(),
+            },
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
-      home: const AuthWrapper(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -67,10 +76,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
 
-        final session = snapshot.data?.session;
+        final authState = snapshot.data;
+        final session = authState?.session;
+        
         if (session != null) {
+          // 로그인 시 프로필 로드
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<UserProvider>().loadUserProfile();
+          });
           return const MainScreen();
         } else {
+          // 로그아웃 시 프로필 초기화
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<UserProvider>().clearProfile();
+          });
           return const LoginScreen();
         }
       },
