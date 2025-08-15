@@ -205,15 +205,21 @@ class AuthService {
       // 사용자 데이터 삭제 (프로필, 마일스톤, 스킬, 퀘스트 등)
       await _deleteUserData(user.id);
 
-      // 계정 비활성화 (이메일을 무효한 주소로 변경)
-      await _supabase.auth.updateUser(
-        UserAttributes(
-          email: 'deleted_${user.id}_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
-        ),
-      );
+      // 계정 비활성화 - 더 간단한 방법
+      try {
+        await _supabase.auth.updateUser(
+          UserAttributes(
+            email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
+          ),
+        );
+      } catch (e) {
+        // 이메일 변경이 실패해도 계속 진행
+        print('이메일 변경 실패: $e');
+      }
 
       // 로그아웃
       await _supabase.auth.signOut();
+      
     } on AuthException catch (e) {
       switch (e.message) {
         case 'Invalid login credentials':
@@ -222,12 +228,17 @@ class AuthService {
           throw Exception('사용자를 찾을 수 없습니다.');
         case 'Email not confirmed':
           throw Exception('이메일 인증이 필요합니다.');
+        case 'User not allowed':
+          throw Exception('계정 삭제 권한이 없습니다. 관리자에게 문의하세요.');
         default:
           throw Exception('계정 삭제 실패: ${e.message}');
       }
     } catch (e) {
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
         throw Exception('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+      }
+      if (e.toString().contains('User not allowed')) {
+        throw Exception('계정 삭제 권한이 없습니다. 관리자에게 문의하세요.');
       }
       rethrow;
     }
@@ -236,12 +247,19 @@ class AuthService {
   // 사용자 데이터 삭제
   Future<void> _deleteUserData(String userId) async {
     try {
-      // 사용자의 모든 데이터 삭제
+      // 사용자의 모든 데이터 삭제 (순서 중요)
       await _supabase.from('user_milestones').delete().eq('user_id', userId);
       await _supabase.from('user_stat_priorities').delete().eq('user_id', userId);
       await _supabase.from('skills').delete().eq('user_id', userId);
       await _supabase.from('quests').delete().eq('user_id', userId);
-      await _supabase.from('profiles').delete().eq('id', userId);
+      
+      // 프로필은 마지막에 삭제
+      try {
+        await _supabase.from('profiles').delete().eq('id', userId);
+      } catch (e) {
+        print('프로필 삭제 실패: $e');
+        // 프로필 삭제가 실패해도 계속 진행
+      }
     } catch (e) {
       // 데이터 삭제 실패해도 계정 삭제는 계속 진행
       print('사용자 데이터 삭제 중 오류: $e');
