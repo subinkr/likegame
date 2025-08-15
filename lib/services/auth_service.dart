@@ -206,10 +206,14 @@ class AuthService {
       print('비밀번호 확인 완료');
 
       // 2. Edge Function을 통해 계정 완전 삭제
+      print('Edge Function 호출 시작...');
       final response = await _supabase.functions.invoke(
         'delete-user-account',
         body: {},
       );
+
+      print('Edge Function 응답: ${response.data}');
+      print('Edge Function 오류: ${response.error}');
 
       if (response.error != null) {
         throw Exception('계정 삭제 실패: ${response.error}');

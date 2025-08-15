@@ -89,11 +89,15 @@ serve(async (req) => {
     }
 
     // Delete the user account
+    console.log('Attempting to delete user account:', userId)
     const { error: deleteUserError } = await supabaseClient.auth.admin.deleteUser(userId)
 
     if (deleteUserError) {
+      console.error('Failed to delete user:', deleteUserError)
       throw new Error(`Failed to delete user: ${deleteUserError.message}`)
     }
+
+    console.log('User account deleted successfully')
 
     return new Response(
       JSON.stringify({ message: 'User account deleted successfully' }),
