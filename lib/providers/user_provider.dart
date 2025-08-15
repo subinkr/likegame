@@ -16,28 +16,23 @@ class UserProvider extends ChangeNotifier {
 
   // 사용자 프로필 로드
   Future<void> loadUserProfile() async {
-    if (!isLoggedIn) {
-      return;
-    }
-    
-    _isLoading = true;
-    notifyListeners();
-
     try {
       final profile = await _authService.getUserProfile();
-      _userProfile = profile;
+      if (profile != null) {
+        _userProfile = profile;
+        _isLoading = true;
+        notifyListeners();
+      }
     } catch (e) {
-      print('UserProvider - 프로필 로드 실패: $e');
-      // 탈퇴한 계정 예외 처리
+      print('UserProvider - 프로필 로드 실패');
       if (e.toString().contains('탈퇴한 계정입니다')) {
         print('UserProvider - 탈퇴한 계정 감지');
         _userProfile = null;
         _deletedAccountMessage = '탈퇴한 계정입니다.';
         notifyListeners();
-        // 탈퇴한 계정 예외를 다시 던져서 UI에서 처리할 수 있도록 함
         rethrow;
       }
-      // 406 오류나 다른 오류 시 프로필 초기화
+      // 406 오류 시 프로필 초기화
       if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
         print('UserProvider - 406 오류 감지, 프로필 초기화');
         _userProfile = null;

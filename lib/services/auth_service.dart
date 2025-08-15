@@ -132,7 +132,7 @@ class AuthService {
       
       return profile;
     } catch (e) {
-      print('프로필 가져오기 실패: $e');
+      print('프로필 가져오기 실패');
       // 406 오류나 다른 오류 시 로그아웃 처리
       if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
         print('406 오류 감지, 로그아웃 처리');
@@ -213,7 +213,7 @@ class AuthService {
       final user = currentUser;
       if (user == null) throw Exception('로그인이 필요합니다.');
 
-      print('계정 탈퇴 시작: ${user.email}');
+      print('계정 탈퇴 프로세스 시작');
 
       // 1. 비밀번호 확인 (재인증)
       await _supabase.auth.signInWithPassword(
@@ -235,9 +235,9 @@ class AuthService {
               'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('id', user.id);
-        print('계정 탈퇴 처리 성공 (is_deleted = true)');
+        print('계정 탈퇴 처리 성공');
       } catch (e) {
-        print('계정 탈퇴 처리 실패: $e');
+        print('계정 탈퇴 처리 실패');
       }
 
       // 4. 로그아웃
@@ -245,7 +245,7 @@ class AuthService {
       print('계정 탈퇴 완료');
 
     } on AuthException catch (e) {
-      print('AuthException: ${e.message}');
+      print('AuthException 발생');
       switch (e.message) {
         case 'Invalid login credentials':
           throw Exception('비밀번호가 올바르지 않습니다.');
@@ -257,7 +257,7 @@ class AuthService {
           throw Exception('계정 탈퇴 실패: ${e.message}');
       }
     } catch (e) {
-      print('General Exception: $e');
+      print('계정 탈퇴 중 오류 발생');
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
         throw Exception('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
       }
@@ -270,14 +270,14 @@ class AuthService {
   // 사용자 데이터 삭제 (새로운 방법)
   Future<void> _deleteUserData(String userId) async {
     try {
-      print('사용자 데이터 삭제 시작: $userId');
+      print('사용자 데이터 삭제 시작');
       
       // 1. 사용자 마일스톤 삭제
       try {
         await _supabase.from('user_milestones').delete().eq('user_id', userId);
         print('마일스톤 삭제 완료');
       } catch (e) {
-        print('마일스톤 삭제 실패: $e');
+        print('마일스톤 삭제 실패');
       }
 
       // 2. 스탯 우선순위 삭제
@@ -285,7 +285,7 @@ class AuthService {
         await _supabase.from('user_stat_priorities').delete().eq('user_id', userId);
         print('스탯 우선순위 삭제 완료');
       } catch (e) {
-        print('스탯 우선순위 삭제 실패: $e');
+        print('스탯 우선순위 삭제 실패');
       }
 
       // 3. 스킬 삭제
@@ -293,7 +293,7 @@ class AuthService {
         await _supabase.from('skills').delete().eq('user_id', userId);
         print('스킬 삭제 완료');
       } catch (e) {
-        print('스킬 삭제 실패: $e');
+        print('스킬 삭제 실패');
       }
 
       // 4. 퀘스트 삭제
@@ -301,7 +301,7 @@ class AuthService {
         await _supabase.from('quests').delete().eq('user_id', userId);
         print('퀘스트 삭제 완료');
       } catch (e) {
-        print('퀘스트 삭제 실패: $e');
+        print('퀘스트 삭제 실패');
       }
 
       // 5. 프로필은 삭제하지 않음 (초기화로 대체)
@@ -309,7 +309,7 @@ class AuthService {
 
       print('모든 사용자 데이터 삭제 완료');
     } catch (e) {
-      print('사용자 데이터 삭제 중 오류: $e');
+      print('사용자 데이터 삭제 중 오류');
       // 데이터 삭제 실패해도 계정 탈퇴는 계속 진행
     }
   }
