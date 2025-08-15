@@ -128,6 +128,8 @@ class AuthService {
       if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
         print('406 오류 감지, 로그아웃 처리');
         await _supabase.auth.signOut();
+        // 탈퇴한 계정임을 나타내는 특별한 예외 던지기
+        throw Exception('탈퇴한 계정입니다.');
       }
       return null;
     }
@@ -236,14 +238,18 @@ class AuthService {
           print('계정 삭제 성공');
         } catch (e) {
           print('계정 삭제 실패: $e');
-          // 계정 삭제 실패 시 비활성화
+          // 계정 삭제 실패 시 비활성화 (이메일 변경 없이)
           try {
-            await _supabase.auth.updateUser(
-              UserAttributes(
-                email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
-              ),
-            );
-            print('계정 비활성화 성공');
+            // 이메일 변경 대신 다른 방식으로 비활성화
+            // 예: 프로필에서 삭제 표시
+            await _supabase
+                .from('profiles')
+                .update({
+                  'nickname': '탈퇴한 사용자',
+                  'updated_at': DateTime.now().toIso8601String(),
+                })
+                .eq('id', user.id);
+            print('계정 비활성화 성공 (프로필 업데이트)');
           } catch (e2) {
             print('계정 비활성화 실패: $e2');
           }
