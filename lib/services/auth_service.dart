@@ -190,36 +190,36 @@ class AuthService {
     }
   }
 
-  // 계정 삭제
+  // 계정 탈퇴 (새로운 간단한 방법)
   Future<void> deleteAccount(String password) async {
     try {
       final user = currentUser;
       if (user == null) throw Exception('로그인이 필요합니다.');
 
-      // 먼저 현재 비밀번호로 재인증
+      print('계정 탈퇴 시작: ${user.email}');
+
+      // 1. 비밀번호 확인
       await _supabase.auth.signInWithPassword(
         email: user.email ?? '',
         password: password,
       );
+      print('비밀번호 확인 완료');
 
-      // 사용자 데이터 삭제 (프로필, 마일스톤, 스킬, 퀘스트 등)
+      // 2. 사용자 데이터 삭제
       await _deleteUserData(user.id);
+      print('사용자 데이터 삭제 완료');
 
-      // 계정 비활성화 - 가장 간단한 방법
-      try {
-        // 이메일을 무효한 주소로 변경
-        await _supabase.auth.updateUser(
-          UserAttributes(
-            email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
-          ),
-        );
-      } catch (e) {
-        print('이메일 변경 실패: $e');
-        // 이메일 변경이 실패해도 계속 진행
-      }
+      // 3. 계정 비활성화 (이메일 변경)
+      await _supabase.auth.updateUser(
+        UserAttributes(
+          email: 'deleted_${DateTime.now().millisecondsSinceEpoch}@deleted.com',
+        ),
+      );
+      print('계정 비활성화 완료');
 
-      // 로그아웃
+      // 4. 로그아웃
       await _supabase.auth.signOut();
+      print('계정 탈퇴 완료');
       
     } on AuthException catch (e) {
       print('AuthException: ${e.message}');
@@ -230,42 +230,68 @@ class AuthService {
           throw Exception('사용자를 찾을 수 없습니다.');
         case 'Email not confirmed':
           throw Exception('이메일 인증이 필요합니다.');
-        case 'User not allowed':
-          throw Exception('계정 삭제 권한이 없습니다. 관리자에게 문의하세요.');
         default:
-          throw Exception('계정 삭제 실패: ${e.message}');
+          throw Exception('계정 탈퇴 실패: ${e.message}');
       }
     } catch (e) {
       print('General Exception: $e');
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
         throw Exception('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
       }
-      if (e.toString().contains('User not allowed')) {
-        throw Exception('계정 삭제 권한이 없습니다. 관리자에게 문의하세요.');
-      }
-      rethrow;
+      throw Exception('계정 탈퇴 중 오류가 발생했습니다: ${e.toString()}');
     }
   }
 
-  // 사용자 데이터 삭제
+  // 사용자 데이터 삭제 (새로운 방법)
   Future<void> _deleteUserData(String userId) async {
     try {
-      // 사용자의 모든 데이터 삭제 (순서 중요)
-      await _supabase.from('user_milestones').delete().eq('user_id', userId);
-      await _supabase.from('user_stat_priorities').delete().eq('user_id', userId);
-      await _supabase.from('skills').delete().eq('user_id', userId);
-      await _supabase.from('quests').delete().eq('user_id', userId);
+      print('사용자 데이터 삭제 시작: $userId');
       
-      // 프로필은 마지막에 삭제 (403 오류 방지)
+      // 1. 사용자 마일스톤 삭제
+      try {
+        await _supabase.from('user_milestones').delete().eq('user_id', userId);
+        print('마일스톤 삭제 완료');
+      } catch (e) {
+        print('마일스톤 삭제 실패: $e');
+      }
+
+      // 2. 스탯 우선순위 삭제
+      try {
+        await _supabase.from('user_stat_priorities').delete().eq('user_id', userId);
+        print('스탯 우선순위 삭제 완료');
+      } catch (e) {
+        print('스탯 우선순위 삭제 실패: $e');
+      }
+
+      // 3. 스킬 삭제
+      try {
+        await _supabase.from('skills').delete().eq('user_id', userId);
+        print('스킬 삭제 완료');
+      } catch (e) {
+        print('스킬 삭제 실패: $e');
+      }
+
+      // 4. 퀘스트 삭제
+      try {
+        await _supabase.from('quests').delete().eq('user_id', userId);
+        print('퀘스트 삭제 완료');
+      } catch (e) {
+        print('퀘스트 삭제 실패: $e');
+      }
+
+      // 5. 프로필 삭제 (마지막)
       try {
         await _supabase.from('profiles').delete().eq('id', userId);
+        print('프로필 삭제 완료');
       } catch (e) {
         print('프로필 삭제 실패: $e');
         // 프로필 삭제가 실패해도 계속 진행
       }
+
+      print('모든 사용자 데이터 삭제 완료');
     } catch (e) {
-      // 데이터 삭제 실패해도 계정 삭제는 계속 진행
       print('사용자 데이터 삭제 중 오류: $e');
+      // 데이터 삭제 실패해도 계정 탈퇴는 계속 진행
     }
   }
 
