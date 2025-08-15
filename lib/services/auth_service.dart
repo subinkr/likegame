@@ -190,7 +190,7 @@ class AuthService {
     }
   }
 
-  // 계정 탈퇴 (데이터만 삭제하는 안전한 방법)
+  // 계정 탈퇴 (데이터 초기화 방식)
   Future<void> deleteAccount(String password) async {
     try {
       final user = currentUser;
@@ -209,9 +209,13 @@ class AuthService {
       await _deleteUserData(user.id);
       print('사용자 데이터 삭제 완료');
 
-      // 3. 로그아웃 (계정은 그대로 두고 데이터만 삭제)
+      // 3. 프로필 초기화 (삭제 대신 초기값으로 설정)
+      await _resetUserProfile(user.id);
+      print('프로필 초기화 완료');
+
+      // 4. 로그아웃
       await _supabase.auth.signOut();
-      print('계정 탈퇴 완료 (데이터만 삭제됨)');
+      print('계정 탈퇴 완료 (데이터 초기화됨)');
       
     } on AuthException catch (e) {
       print('AuthException: ${e.message}');
@@ -231,6 +235,19 @@ class AuthService {
         throw Exception('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
       }
       throw Exception('계정 탈퇴 중 오류가 발생했습니다: ${e.toString()}');
+    }
+  }
+
+  // 프로필 초기화 (삭제 대신)
+  Future<void> _resetUserProfile(String userId) async {
+    try {
+      await _supabase.from('profiles').update({
+        'nickname': 'anonymous',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+      print('프로필 초기화 완료');
+    } catch (e) {
+      print('프로필 초기화 실패: $e');
     }
   }
 
@@ -271,14 +288,8 @@ class AuthService {
         print('퀘스트 삭제 실패: $e');
       }
 
-      // 5. 프로필 삭제 (마지막)
-      try {
-        await _supabase.from('profiles').delete().eq('id', userId);
-        print('프로필 삭제 완료');
-      } catch (e) {
-        print('프로필 삭제 실패: $e');
-        // 프로필 삭제가 실패해도 계속 진행
-      }
+      // 5. 프로필은 삭제하지 않음 (초기화로 대체)
+      print('프로필 삭제 건너뜀 (초기화로 대체)');
 
       print('모든 사용자 데이터 삭제 완료');
     } catch (e) {
