@@ -18,10 +18,10 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   final StatService _statService = StatService();
   
   List<Quest> _quests = [];
-  List<Stat> _stats = [];
+
 
   bool _isLoading = true;
-  bool _showCompleted = false;
+
   
   // 필터링 및 정렬
   String? _selectedCategory;
@@ -60,13 +60,12 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
     try {
       final userId = context.read<UserProvider>().currentUserId!;
       final quests = await _questService.getUserQuests(userId);
-      final stats = await _statService.getAllStats();
+
       
-      setState(() {
-        _quests = quests;
-        _stats = stats;
-        _isLoading = false;
-      });
+              setState(() {
+          _quests = quests;
+          _isLoading = false;
+        });
     } catch (e) {
       setState(() {
         _isLoading = false;

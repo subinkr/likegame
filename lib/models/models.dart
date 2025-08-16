@@ -154,7 +154,7 @@ class SkillProgress {
 
   String get rankProgressText {
     final currentRankProgress = completedCount % 20;
-    final nextRankThreshold = ((completedCount ~/ 20) + 1) * 20;
+
     return '$currentRankProgress/20';
   }
 }
@@ -312,9 +312,7 @@ class Quest {
     this.repeatConfig,
     this.estimatedMinutes = 0,
     this.actualMinutes = 0,
-    this.startedAt,
-    this.pausedAt,
-    this.timeEntries = const [],
+
     this.templateId,
     this.customFields,
   });
