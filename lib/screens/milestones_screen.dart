@@ -153,6 +153,20 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
           _completedMilestoneIds.add(milestone.id);
         });
         
+        // 프리미엄 기능 처리
+        try {
+          await _statService.onMilestoneCompleted(
+            userId: user.id,
+            statId: widget.skill.id,
+            level: milestone.level,
+            rank: _getRankFromLevel(milestone.level),
+            milestoneDescription: milestone.description,
+          );
+        } catch (e) {
+          // 프리미엄 기능 오류는 무시하고 기본 기능은 계속 작동
+          print('프리미엄 기능 처리 중 오류: $e');
+        }
+        
         // 전역 이벤트 발생
         _eventService.notifyMilestoneChanged();
         
@@ -189,6 +203,15 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
       barrierDismissible: true,
       builder: (context) => const CompletionDialog(),
     );
+  }
+
+  String _getRankFromLevel(int level) {
+    if (level < 20) return 'F';
+    if (level < 40) return 'E';
+    if (level < 60) return 'D';
+    if (level < 80) return 'C';
+    if (level < 100) return 'B';
+    return 'A';
   }
 
   Color _getRankColor(String rank) {
