@@ -53,6 +53,8 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
@@ -61,21 +63,27 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
       final userId = context.read<UserProvider>().currentUserId!;
       final quests = await _questService.getUserQuests(userId);
 
+      if (!mounted) return;
       
-              setState(() {
-          _quests = quests;
-          _isLoading = false;
-        });
+      setState(() {
+        _quests = quests;
+        _isLoading = false;
+      });
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('데이터 로드 실패: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터 로드 실패: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

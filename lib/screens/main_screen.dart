@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'dashboard_screen.dart';
 import 'skills_screen.dart';
 import 'quests_screen.dart';
 import 'profile_screen.dart';
 import '../utils/text_utils.dart';
+import '../providers/user_provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -37,7 +39,29 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        // 탈퇴한 계정 메시지 표시
+        if (userProvider.deletedAccountMessage != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(userProvider.deletedAccountMessage!),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+                action: SnackBarAction(
+                  label: '확인',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                ),
+              ),
+            );
+          });
+        }
+        
+        return Scaffold(
       appBar: AppBar(
         title: Text(
           _titles[_currentIndex],
@@ -114,6 +138,8 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
+        );
+      },
     );
   }
 
