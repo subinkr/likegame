@@ -1128,6 +1128,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
     final descriptionController = TextEditingController();
     DateTime? selectedDueDate;
     String selectedPriority = 'normal';
+    String selectedDifficulty = 'F';
 
     await showDialog(
       context: context,
@@ -1284,6 +1285,123 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                     });
                   },
                 ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: '난이도',
+                    border: OutlineInputBorder(),
+                  ),
+                  value: selectedDifficulty,
+                  items: [
+                    DropdownMenuItem(
+                      value: 'F',
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('F - 초급'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'E',
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[600],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('E - 초급+'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'D',
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.blue[400],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('D - 중급'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'C',
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.green[400],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('C - 중급+'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'B',
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.orange[400],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('B - 고급'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'A',
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.red[400],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('A - 최고급'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedDifficulty = value!;
+                    });
+                  },
+                ),
               ],
             ),
           ),
@@ -1319,9 +1437,10 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                     description: descriptionController.text.trim().isEmpty 
                         ? null 
                         : descriptionController.text.trim(),
-                              statId: null,
+                    statId: null,
                     dueDate: selectedDueDate,
                     priority: selectedPriority,
+                    difficulty: selectedDifficulty,
                   );
                   
                   Navigator.of(context).pop();
@@ -1360,6 +1479,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
     final descriptionController = TextEditingController(text: quest.description ?? '');
     DateTime? selectedDueDate = quest.dueDate;
     String selectedPriority = quest.priority;
+    String selectedDifficulty = quest.difficulty;
 
     await showDialog(
       context: context,
@@ -1516,6 +1636,123 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             });
                           },
                         ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(
+                            labelText: '난이도',
+                            border: OutlineInputBorder(),
+                          ),
+                          value: selectedDifficulty,
+                          items: [
+                            DropdownMenuItem(
+                              value: 'F',
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[400],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('F - 초급'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'E',
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[600],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('E - 초급+'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'D',
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue[400],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('D - 중급'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'C',
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Colors.green[400],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('C - 중급+'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'B',
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange[400],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('B - 고급'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'A',
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[400],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('A - 최고급'),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedDifficulty = value!;
+                            });
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -1552,6 +1789,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                                   : descriptionController.text.trim(),
                               dueDate: selectedDueDate,
                               priority: selectedPriority,
+                              difficulty: selectedDifficulty,
                             );
                             
                             Navigator.of(context).pop();

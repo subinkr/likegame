@@ -120,6 +120,7 @@ class QuestService {
     String? statId,
     DateTime? dueDate,
     String? priority,
+    String? difficulty,
     bool? isCompleted,
   }) async {
     try {
@@ -130,6 +131,7 @@ class QuestService {
       if (statId != null) updateData['stat_id'] = statId;
       if (dueDate != null) updateData['due_date'] = dueDate.toIso8601String();
       if (priority != null) updateData['priority'] = priority;
+      if (difficulty != null) updateData['difficulty'] = difficulty;
       if (isCompleted != null) updateData['is_completed'] = isCompleted;
       
       updateData['updated_at'] = DateTime.now().toIso8601String();
