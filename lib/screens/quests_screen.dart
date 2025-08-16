@@ -794,21 +794,23 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   }
 
   Color _getDifficultyColor(String difficulty) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     switch (difficulty) {
       case 'F':
-        return Colors.grey[400]!;
+        return isDark ? const Color(0xFF9E9E9E) : Colors.grey;
       case 'E':
-        return Colors.grey[600]!;
+        return isDark ? const Color(0xFF8D6E63) : Colors.brown;
       case 'D':
-        return Colors.blue[400]!;
+        return isDark ? const Color(0xFFFF9800) : Colors.orange;
       case 'C':
-        return Colors.green[400]!;
+        return isDark ? const Color(0xFFFFC107) : Colors.yellow[700]!;
       case 'B':
-        return Colors.orange[400]!;
+        return isDark ? const Color(0xFF03A9F4) : Colors.lightBlue;
       case 'A':
-        return Colors.red[400]!;
+        return isDark ? const Color(0xFF9C27B0) : Colors.purple;
       default:
-        return Colors.grey[400]!;
+        return isDark ? const Color(0xFF9E9E9E) : Colors.grey;
     }
   }
 
@@ -1301,12 +1303,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFF9E9E9E) 
+                                  : Colors.grey,
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('F - 초급'),
+                          const Text('F'),
                         ],
                       ),
                     ),
@@ -1318,12 +1322,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: Colors.grey[600],
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFF8D6E63) 
+                                  : Colors.brown,
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('E - 초급+'),
+                          const Text('E'),
                         ],
                       ),
                     ),
@@ -1335,12 +1341,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: Colors.blue[400],
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFFFF9800) 
+                                  : Colors.orange,
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('D - 중급'),
+                          const Text('D'),
                         ],
                       ),
                     ),
@@ -1352,12 +1360,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: Colors.green[400],
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFFFFC107) 
+                                  : Colors.yellow[700]!,
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('C - 중급+'),
+                          const Text('C'),
                         ],
                       ),
                     ),
@@ -1369,12 +1379,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: Colors.orange[400],
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFF03A9F4) 
+                                  : Colors.lightBlue,
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('B - 고급'),
+                          const Text('B'),
                         ],
                       ),
                     ),
@@ -1386,12 +1398,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: Colors.red[400],
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFF9C27B0) 
+                                  : Colors.purple,
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('A - 최고급'),
+                          const Text('A'),
                         ],
                       ),
                     ),
@@ -1652,12 +1666,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                                     width: 16,
                                     height: 16,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[400],
+                                      color: Theme.of(context).brightness == Brightness.dark 
+                                          ? const Color(0xFF9E9E9E) 
+                                          : Colors.grey,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text('F - 초급'),
+                                  const Text('F'),
                                 ],
                               ),
                             ),
@@ -1669,12 +1685,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                                     width: 16,
                                     height: 16,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[600],
+                                      color: Theme.of(context).brightness == Brightness.dark 
+                                          ? const Color(0xFF8D6E63) 
+                                          : Colors.brown,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text('E - 초급+'),
+                                  const Text('E'),
                                 ],
                               ),
                             ),
@@ -1686,12 +1704,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                                     width: 16,
                                     height: 16,
                                     decoration: BoxDecoration(
-                                      color: Colors.blue[400],
+                                      color: Theme.of(context).brightness == Brightness.dark 
+                                          ? const Color(0xFFFF9800) 
+                                          : Colors.orange,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text('D - 중급'),
+                                  const Text('D'),
                                 ],
                               ),
                             ),
@@ -1703,12 +1723,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                                     width: 16,
                                     height: 16,
                                     decoration: BoxDecoration(
-                                      color: Colors.green[400],
+                                      color: Theme.of(context).brightness == Brightness.dark 
+                                          ? const Color(0xFFFFC107) 
+                                          : Colors.yellow[700]!,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text('C - 중급+'),
+                                  const Text('C'),
                                 ],
                               ),
                             ),
@@ -1720,12 +1742,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                                     width: 16,
                                     height: 16,
                                     decoration: BoxDecoration(
-                                      color: Colors.orange[400],
+                                      color: Theme.of(context).brightness == Brightness.dark 
+                                          ? const Color(0xFF03A9F4) 
+                                          : Colors.lightBlue,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text('B - 고급'),
+                                  const Text('B'),
                                 ],
                               ),
                             ),
@@ -1737,12 +1761,14 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                                     width: 16,
                                     height: 16,
                                     decoration: BoxDecoration(
-                                      color: Colors.red[400],
+                                      color: Theme.of(context).brightness == Brightness.dark 
+                                          ? const Color(0xFF9C27B0) 
+                                          : Colors.purple,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text('A - 최고급'),
+                                  const Text('A'),
                                 ],
                               ),
                             ),
