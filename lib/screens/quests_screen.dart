@@ -269,7 +269,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                     onSelected: (selected) {
                       if (selected) {
                         _showCategoryFilterDialog();
-                      } else {
+    } else {
                         setState(() {
                           _selectedCategory = null;
                         });
@@ -1451,7 +1451,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                     description: descriptionController.text.trim().isEmpty 
                         ? null 
                         : descriptionController.text.trim(),
-                    statId: null,
+                              statId: null,
                     dueDate: selectedDueDate,
                     priority: selectedPriority,
                     difficulty: selectedDifficulty,

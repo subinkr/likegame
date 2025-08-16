@@ -383,12 +383,28 @@ class StatService {
   // 성과 통계 가져오기
   Future<List<StatPerformance>> getStatPerformance(String userId) async {
     try {
-      final response = await _supabase
-          .rpc('get_stat_performance', params: {'p_user_id': userId});
+      // 임시로 기본 성과 데이터 생성
+      final allSkills = await getUserSkillsProgress(userId);
+      
+      return allSkills.map((skill) => StatPerformance(
+        statId: skill.skillId,
+        statName: skill.skillName,
+        totalCompleted: skill.completedCount,
+        weeklyCompleted: 0, // 임시로 0
+        monthlyCompleted: 0, // 임시로 0
+        weeklyGrowth: 0.0, // 임시로 0
+        monthlyGrowth: 0.0, // 임시로 0
+        currentStreak: skill.currentStreak,
+        bestStreak: skill.bestStreak,
+        lastActivity: skill.lastCompletedAt,
+      )).toList();
+      
+      // final response = await _supabase
+      //     .rpc('get_stat_performance', params: {'p_user_id': userId});
 
-      return (response as List)
-          .map((performance) => StatPerformance.fromJson(performance))
-          .toList();
+      // return (response as List)
+      //     .map((performance) => StatPerformance.fromJson(performance))
+      //         .toList();
     } catch (e) {
       // 데이터베이스 함수가 없으면 빈 리스트 반환
       return [];
