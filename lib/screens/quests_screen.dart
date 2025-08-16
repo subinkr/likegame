@@ -494,6 +494,25 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                       ),
                     ),
                   ],
+                  if (quest.isCompleted) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle, size: 16, color: Colors.green),
+                          SizedBox(width: 4),
+                          Text('완료', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
               
@@ -631,21 +650,22 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                   const Spacer(),
                   
                   // 액션 버튼들
-                  if (!quest.isCompleted) ...[
-                    IconButton(
-                      icon: Icon(
-                        quest.isInProgress ? Icons.pause : Icons.play_arrow,
-                        color: quest.isInProgress ? Colors.orange : Colors.green,
-                      ),
-                      onPressed: () => _toggleQuestProgress(quest),
-                      tooltip: quest.isInProgress ? '일시정지' : '시작',
+                  IconButton(
+                    icon: Icon(
+                      quest.isInProgress ? Icons.pause : Icons.play_arrow,
+                      color: quest.isInProgress ? Colors.orange : Colors.green,
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.blue),
-                      onPressed: () => _toggleQuest(quest),
-                      tooltip: '완료',
+                    onPressed: () => _toggleQuestProgress(quest),
+                    tooltip: quest.isInProgress ? '일시정지' : '시작',
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      quest.isCompleted ? Icons.check_circle : Icons.check_circle_outline,
+                      color: quest.isCompleted ? Colors.green : Colors.blue,
                     ),
-                  ],
+                    onPressed: () => _toggleQuest(quest),
+                    tooltip: quest.isCompleted ? '미완료로 변경' : '완료',
+                  ),
                   
                   PopupMenuButton<String>(
                     onSelected: (value) {

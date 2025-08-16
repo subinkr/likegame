@@ -152,18 +152,17 @@ class QuestService {
   // 퀘스트 완료/미완료 토글
   Future<Quest> toggleQuest(String questId, bool isCompleted) async {
     try {
-      final updateData = {
+      final updateData = <String, dynamic>{
         'is_completed': isCompleted,
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      // 완료하는 경우 시간 추적 중지
+      // 완료하는 경우 완료 시간 설정
       if (isCompleted) {
-        updateData['paused_at'] = DateTime.now().toIso8601String();
         updateData['completed_at'] = DateTime.now().toIso8601String();
       } else {
         // 미완료로 되돌리는 경우 완료 시간 제거
-        updateData.remove('completed_at');
+        updateData['completed_at'] = null;
       }
 
       final response = await _supabase
@@ -175,6 +174,7 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
+      print('퀘스트 토글 실패: $e');
       rethrow;
     }
   }
