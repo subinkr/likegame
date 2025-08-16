@@ -100,7 +100,7 @@ class _MainScreenState extends State<MainScreen> {
                           index: 0,
                         ),
                         _buildNavItem(
-                          icon: Icons.badge,
+                          icon: Icons.emoji_events_outlined,
                           label: '스킬'.withKoreanWordBreak,
                           index: 1,
                         ),
