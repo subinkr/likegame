@@ -337,43 +337,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // 프로필 정보 카드
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
+                          blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: Column(
+                    child: Row(
                       children: [
                         CircleAvatar(
-                          radius: 40,
+                          radius: 24,
                           backgroundColor: Theme.of(context).primaryColor,
                           child: Icon(
                             Icons.person,
-                            size: 40,
+                            size: 24,
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          userProvider.userProfile?.nickname ?? '닉네임 없음',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _authService.currentUser?.email ?? '',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                userProvider.userProfile?.nickname ?? '닉네임 없음',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _authService.currentUser?.email ?? '',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
