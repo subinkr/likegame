@@ -443,7 +443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         if (_isLoadingStats)
                           const CircularProgressIndicator()
@@ -454,7 +454,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             value: '${_skills.length}',
                             color: Colors.blue,
                           ),
-                          const SizedBox(width: 32),
                           _buildCompactStatItem(
                             icon: Icons.task_alt,
                             title: '완료한 퀘스트',
