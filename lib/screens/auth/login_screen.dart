@@ -85,19 +85,24 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         String errorMessage = '로그인에 실패했습니다.';
         
-        // 오류 메시지에서 Exception: 부분 제거
-        if (e.toString().contains('Exception: ')) {
-          errorMessage = e.toString().replaceAll('Exception: ', '');
-        } else if (e.toString().contains('로그인 실패: ')) {
-          errorMessage = e.toString().replaceAll('로그인 실패: ', '');
+        // 탈퇴한 계정인지 먼저 확인
+        if (e.toString().contains('탈퇴한 계정입니다')) {
+          errorMessage = '탈퇴한 계정입니다.';
         } else {
-          errorMessage = e.toString();
+          // 오류 메시지에서 Exception: 부분 제거
+          if (e.toString().contains('Exception: ')) {
+            errorMessage = e.toString().replaceAll('Exception: ', '');
+          } else if (e.toString().contains('로그인 실패: ')) {
+            errorMessage = e.toString().replaceAll('로그인 실패: ', '');
+          } else {
+            errorMessage = e.toString();
+          }
         }
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+            backgroundColor: e.toString().contains('탈퇴한 계정입니다') ? Colors.orange : Colors.red,
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: '확인',

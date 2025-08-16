@@ -54,18 +54,43 @@ class AuthService {
     }
   }
 
+  // 이메일로 계정 상태 확인 (로그인 전)
+  Future<bool> checkAccountStatus(String email) async {
+    try {
+      final result = await _supabase
+          .from('profiles')
+          .select('is_deleted')
+          .eq('email', email)
+          .maybeSingle();
+      
+      if (result != null && result['is_deleted'] == true) {
+        return true; // 탈퇴한 계정
+      }
+      return false; // 정상 계정 또는 계정 없음
+    } catch (e) {
+      // 조회 실패 시 false 반환 (정상 계정으로 처리)
+      return false;
+    }
+  }
+
   // 로그인
   Future<AuthResponse> signIn({
     required String email,
     required String password,
   }) async {
     try {
+      // 로그인 시도 전에 탈퇴한 계정인지 먼저 확인
+      final isDeleted = await checkAccountStatus(email);
+      if (isDeleted) {
+        throw Exception('탈퇴한 계정입니다.');
+      }
+      
       final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
       
-      // 로그인 성공 후 즉시 탈퇴한 계정인지 확인
+      // 로그인 성공 후 즉시 탈퇴한 계정인지 확인 (이중 체크)
       try {
         final user = response.user;
         if (user != null) {
