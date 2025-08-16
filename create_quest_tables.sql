@@ -11,7 +11,8 @@ ADD COLUMN IF NOT EXISTS started_at TIMESTAMP WITH TIME ZONE,
 ADD COLUMN IF NOT EXISTS paused_at TIMESTAMP WITH TIME ZONE,
 ADD COLUMN IF NOT EXISTS time_entries JSONB DEFAULT '[]',
 ADD COLUMN IF NOT EXISTS template_id UUID,
-ADD COLUMN IF NOT EXISTS custom_fields JSONB;
+ADD COLUMN IF NOT EXISTS custom_fields JSONB,
+ADD COLUMN IF NOT EXISTS difficulty TEXT DEFAULT 'F' CHECK (difficulty IN ('F', 'E', 'D', 'C', 'B', 'A'));
 
 -- 퀘스트 템플릿 테이블 생성
 CREATE TABLE IF NOT EXISTS quest_templates (
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS quest_templates (
     tags TEXT[] DEFAULT '{}',
     sub_task_titles TEXT[] DEFAULT '{}',
     priority TEXT DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'highest')),
+    difficulty TEXT DEFAULT 'F' CHECK (difficulty IN ('F', 'E', 'D', 'C', 'B', 'A')),
     estimated_minutes INTEGER DEFAULT 0,
     repeat_pattern TEXT,
     repeat_config JSONB,
@@ -50,6 +52,7 @@ CREATE POLICY "Users can delete their own templates" ON quest_templates
 CREATE INDEX IF NOT EXISTS idx_quests_user_id ON quests(user_id);
 CREATE INDEX IF NOT EXISTS idx_quests_category ON quests(category);
 CREATE INDEX IF NOT EXISTS idx_quests_priority ON quests(priority);
+CREATE INDEX IF NOT EXISTS idx_quests_difficulty ON quests(difficulty);
 CREATE INDEX IF NOT EXISTS idx_quests_due_date ON quests(due_date);
 CREATE INDEX IF NOT EXISTS idx_quests_is_completed ON quests(is_completed);
 CREATE INDEX IF NOT EXISTS idx_quests_started_at ON quests(started_at);

@@ -273,6 +273,7 @@ class Quest {
   final String? statId;
   final DateTime? dueDate;
   final String priority; // 'low', 'normal', 'high', 'highest'
+  final String difficulty; // 'F', 'E', 'D', 'C', 'B', 'A'
   final bool isCompleted;
   final DateTime? completedAt;
   final DateTime createdAt;
@@ -300,6 +301,7 @@ class Quest {
     this.statId,
     this.dueDate,
     required this.priority,
+    this.difficulty = 'F',
     required this.isCompleted,
     this.completedAt,
     required this.createdAt,
@@ -329,6 +331,7 @@ class Quest {
           ? DateTime.parse(json['due_date']) 
           : null,
       priority: json['priority'] ?? 'normal',
+      difficulty: json['difficulty'] ?? 'F',
       isCompleted: json['is_completed'],
       completedAt: json['completed_at'] != null 
           ? DateTime.parse(json['completed_at']) 
@@ -371,6 +374,7 @@ class Quest {
       'stat_id': statId,
       'due_date': dueDate?.toIso8601String(),
       'priority': priority,
+      'difficulty': difficulty,
       'is_completed': isCompleted,
       'completed_at': completedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
@@ -405,6 +409,25 @@ class Quest {
     }
   }
 
+  String get difficultyText {
+    switch (difficulty) {
+      case 'F':
+        return 'F';
+      case 'E':
+        return 'E';
+      case 'D':
+        return 'D';
+      case 'C':
+        return 'C';
+      case 'B':
+        return 'B';
+      case 'A':
+        return 'A';
+      default:
+        return 'F';
+    }
+  }
+
   Color get priorityColor {
     switch (priority) {
       case 'low':
@@ -417,6 +440,25 @@ class Quest {
         return Colors.red;
       default:
         return Colors.green;
+    }
+  }
+
+  Color get difficultyColor {
+    switch (difficulty) {
+      case 'F':
+        return Colors.grey[400]!;
+      case 'E':
+        return Colors.grey[600]!;
+      case 'D':
+        return Colors.blue[400]!;
+      case 'C':
+        return Colors.green[400]!;
+      case 'B':
+        return Colors.orange[400]!;
+      case 'A':
+        return Colors.red[400]!;
+      default:
+        return Colors.grey[400]!;
     }
   }
 

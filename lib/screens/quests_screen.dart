@@ -26,8 +26,9 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   // 필터링 및 정렬
   String? _selectedCategory;
   String? _selectedPriority;
+  String? _selectedDifficulty;
   String? _selectedTag;
-  String _sortBy = 'dueDate'; // 'dueDate', 'priority', 'createdAt', 'title'
+  String _sortBy = 'dueDate'; // 'dueDate', 'priority', 'difficulty', 'createdAt', 'title'
   bool _sortAscending = true;
   
   // 탭 컨트롤러
@@ -111,6 +112,11 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
       filtered = filtered.where((quest) => quest.priority == _selectedPriority).toList();
     }
     
+    // 난이도 필터
+    if (_selectedDifficulty != null) {
+      filtered = filtered.where((quest) => quest.difficulty == _selectedDifficulty).toList();
+    }
+    
     // 태그 필터
     if (_selectedTag != null) {
       filtered = filtered.where((quest) => quest.tags.contains(_selectedTag)).toList();
@@ -129,6 +135,10 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
         case 'priority':
           final priorityOrder = {'highest': 4, 'high': 3, 'normal': 2, 'low': 1};
           comparison = (priorityOrder[b.priority] ?? 0).compareTo(priorityOrder[a.priority] ?? 0);
+          break;
+        case 'difficulty':
+          final difficultyOrder = {'A': 6, 'B': 5, 'C': 4, 'D': 3, 'E': 2, 'F': 1};
+          comparison = (difficultyOrder[b.difficulty] ?? 0).compareTo(difficultyOrder[a.difficulty] ?? 0);
           break;
         case 'createdAt':
           comparison = a.createdAt.compareTo(b.createdAt);
@@ -279,6 +289,23 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                     } else {
                       setState(() {
                         _selectedPriority = null;
+                      });
+                    }
+                  },
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // 난이도 필터
+                FilterChip(
+                  label: Text(_selectedDifficulty ?? '난이도'),
+                  selected: _selectedDifficulty != null,
+                  onSelected: (selected) {
+                    if (selected) {
+                      _showDifficultyFilterDialog();
+                    } else {
+                      setState(() {
+                        _selectedDifficulty = null;
                       });
                     }
                   },
@@ -449,6 +476,8 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                   ),
                   const SizedBox(width: 12),
                   _buildPriorityChip(quest.priority),
+                  const SizedBox(width: 8),
+                  _buildDifficultyChip(quest.difficulty),
                   if (quest.isInProgress) ...[
                     const SizedBox(width: 8),
                     Container(
@@ -713,6 +742,42 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
     );
   }
 
+  Widget _buildDifficultyChip(String difficulty) {
+    final color = _getDifficultyColor(difficulty);
+    final text = _getDifficultyText(difficulty);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'low':
@@ -725,6 +790,25 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
         return Colors.red;
       default:
         return Colors.green;
+    }
+  }
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty) {
+      case 'F':
+        return Colors.grey[400]!;
+      case 'E':
+        return Colors.grey[600]!;
+      case 'D':
+        return Colors.blue[400]!;
+      case 'C':
+        return Colors.green[400]!;
+      case 'B':
+        return Colors.orange[400]!;
+      case 'A':
+        return Colors.red[400]!;
+      default:
+        return Colors.grey[400]!;
     }
   }
 
@@ -743,12 +827,33 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
     }
   }
 
+  String _getDifficultyText(String difficulty) {
+    switch (difficulty) {
+      case 'F':
+        return 'F';
+      case 'E':
+        return 'E';
+      case 'D':
+        return 'D';
+      case 'C':
+        return 'C';
+      case 'B':
+        return 'B';
+      case 'A':
+        return 'A';
+      default:
+        return 'F';
+    }
+  }
+
   String _getSortText() {
     switch (_sortBy) {
       case 'dueDate':
         return '마감일';
       case 'priority':
         return '우선순위';
+      case 'difficulty':
+        return '난이도';
       case 'createdAt':
         return '생성일';
       case 'title':
@@ -842,6 +947,80 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
     );
   }
 
+  void _showDifficultyFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('난이도 선택'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('F - 초급'),
+              onTap: () {
+                setState(() {
+                  _selectedDifficulty = 'F';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('E - 초급+'),
+              onTap: () {
+                setState(() {
+                  _selectedDifficulty = 'E';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('D - 중급'),
+              onTap: () {
+                setState(() {
+                  _selectedDifficulty = 'D';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('C - 중급+'),
+              onTap: () {
+                setState(() {
+                  _selectedDifficulty = 'C';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('B - 고급'),
+              onTap: () {
+                setState(() {
+                  _selectedDifficulty = 'B';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('A - 최고급'),
+              onTap: () {
+                setState(() {
+                  _selectedDifficulty = 'A';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showTagFilterDialog() {
     showDialog(
       context: context,
@@ -891,6 +1070,15 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
               onTap: () {
                 setState(() {
                   _sortBy = 'priority';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('난이도'),
+              onTap: () {
+                setState(() {
+                  _sortBy = 'difficulty';
                 });
                 Navigator.of(context).pop();
               },
