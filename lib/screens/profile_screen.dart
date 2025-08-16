@@ -416,8 +416,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Expanded(
                                 child: _buildStatItem(
                                   icon: Icons.badge,
-                                  title: '스킬 개수',
-                                  value: '${_skills.length}개',
+                                  title: '스킬',
+                                  value: '${_skills.length}',
                                   color: Colors.blue,
                                 ),
                               ),
@@ -458,7 +458,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '스탯 목록'.withKoreanWordBreak,
+                            '스탯'.withKoreanWordBreak,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -597,67 +597,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildSkillItem(SkillProgress skill) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        '${skill.skillName} ${skill.rank}',
+        style: TextStyle(
+          fontSize: 16,
+          color: _getRankColor(skill.rank),
+          fontWeight: FontWeight.w500,
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _getRankColor(skill.rank).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                skill.rank,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: _getRankColor(skill.rank),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  skill.skillName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${skill.completedCount}/${skill.totalCount} 마일스톤 완료',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${(skill.progressPercentage * 100).toInt()}%',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: _getRankColor(skill.rank),
-            ),
-          ),
-        ],
       ),
     );
   }
