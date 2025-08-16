@@ -392,26 +392,10 @@ class QuestService {
     }
   }
 
-  // 퀘스트 템플릿 관련 메서드들
+  // 퀘스트 템플릿 관련 메서드들 (현재 비활성화됨)
   Future<List<QuestTemplate>> getUserTemplates(String userId) async {
-    try {
-      final response = await _supabase
-          .from('quest_templates')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      return (response as List)
-          .map((template) => QuestTemplate.fromJson(template))
-          .toList();
-    } catch (e) {
-      // 테이블이 존재하지 않는 경우 빈 리스트 반환
-      if (e.toString().contains('quest_templates') || e.toString().contains('PGRST205')) {
-        print('퀘스트 템플릿 테이블이 아직 생성되지 않았습니다. 빈 리스트를 반환합니다.');
-        return [];
-      }
-      rethrow;
-    }
+    // 템플릿 기능이 제거되어 빈 리스트 반환
+    return [];
   }
 
   Future<QuestTemplate> addTemplate({
@@ -426,33 +410,8 @@ class QuestService {
     String? repeatPattern,
     Map<String, dynamic>? repeatConfig,
   }) async {
-    try {
-      final response = await _supabase
-          .from('quest_templates')
-          .insert({
-            'user_id': userId,
-            'title': title,
-            'description': description,
-            'category': category,
-            'tags': tags,
-            'sub_task_titles': subTaskTitles,
-            'priority': priority,
-            'estimated_minutes': estimatedMinutes,
-            'repeat_pattern': repeatPattern,
-            'repeat_config': repeatConfig,
-            'created_at': DateTime.now().toIso8601String(),
-          })
-          .select()
-          .single();
-
-      return QuestTemplate.fromJson(response);
-    } catch (e) {
-      // 테이블이 존재하지 않는 경우 예외 처리
-      if (e.toString().contains('quest_templates') || e.toString().contains('PGRST205')) {
-        throw Exception('퀘스트 템플릿 기능이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
-      }
-      rethrow;
-    }
+    // 템플릿 기능이 제거되어 예외 발생
+    throw Exception('퀘스트 템플릿 기능이 제거되었습니다.');
   }
 
   // 템플릿에서 퀘스트 생성

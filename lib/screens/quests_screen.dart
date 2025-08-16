@@ -62,14 +62,8 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
       final quests = await _questService.getUserQuests(userId);
       final stats = await _statService.getAllStats();
       
-      // 템플릿 로드는 선택적으로 처리
+      // 템플릿 기능은 현재 비활성화됨
       List<QuestTemplate> templates = [];
-      try {
-        templates = await _questService.getUserTemplates(userId);
-      } catch (e) {
-        print('템플릿 로드 실패 (무시됨): $e');
-        // 템플릿 로드 실패는 무시하고 계속 진행
-      }
 
       setState(() {
         _quests = quests;
