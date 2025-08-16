@@ -122,18 +122,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('대시보드'.withKoreanWordBreak),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -220,8 +208,46 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           ),
           const SizedBox(height: 16),
           
-          ..._performanceStats.map((performance) => _buildPerformanceCard(performance)),
+          if (_performanceStats.isEmpty)
+            _buildEmptyPerformanceMessage()
+          else
+            ..._performanceStats.map((performance) => _buildPerformanceCard(performance)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyPerformanceMessage() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(
+              Icons.trending_up,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '성과 데이터를 준비 중입니다'.withKoreanWordBreak,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '마일스톤을 달성하면 성과 통계가 표시됩니다'.withKoreanWordBreak,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -383,12 +383,15 @@ class StatService {
   // 성과 통계 가져오기
   Future<List<StatPerformance>> getStatPerformance(String userId) async {
     try {
-      final response = await _supabase
-          .rpc('get_stat_performance', params: {'p_user_id': userId});
+      // 임시로 빈 리스트 반환 (데이터베이스 함수가 아직 생성되지 않음)
+      return [];
+      
+      // final response = await _supabase
+      //     .rpc('get_stat_performance', params: {'p_user_id': userId});
 
-      return (response as List)
-          .map((performance) => StatPerformance.fromJson(performance))
-          .toList();
+      // return (response as List)
+      //     .map((performance) => StatPerformance.fromJson(performance))
+      //         .toList();
     } catch (e) {
       return [];
     }
