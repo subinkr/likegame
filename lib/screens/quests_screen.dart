@@ -491,7 +491,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                         children: [
                           Icon(Icons.play_arrow, size: 16, color: Colors.blue),
                           SizedBox(width: 4),
-                          Text('진행중', style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
+                          Text('작업중', style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -654,14 +654,16 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                   const Spacer(),
                   
                   // 액션 버튼들
-                  IconButton(
-                    icon: Icon(
-                      quest.isInProgress ? Icons.pause : Icons.play_arrow,
-                      color: quest.isInProgress ? Colors.orange : Colors.green,
+                  if (!quest.isCompleted) ...[
+                    IconButton(
+                      icon: Icon(
+                        quest.isInProgress ? Icons.stop : Icons.play_arrow,
+                        color: quest.isInProgress ? Colors.red : Colors.green,
+                      ),
+                      onPressed: () => _toggleQuestProgress(quest),
+                      tooltip: quest.isInProgress ? '중지' : '시작',
                     ),
-                    onPressed: () => _toggleQuestProgress(quest),
-                    tooltip: quest.isInProgress ? '일시정지' : '시작',
-                  ),
+                  ],
                   IconButton(
                     icon: Icon(
                       quest.isCompleted ? Icons.check_circle : Icons.check_circle_outline,
@@ -1903,7 +1905,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(quest.isInProgress ? '퀘스트를 중지했습니다' : '퀘스트를 시작했습니다'),
-          backgroundColor: Colors.blue,
+          backgroundColor: quest.isInProgress ? Colors.red : Colors.green,
         ),
       );
     } catch (e) {
