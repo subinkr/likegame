@@ -958,7 +958,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: const Text('F - 초급'),
+              title: const Text('F'),
               onTap: () {
                 setState(() {
                   _selectedDifficulty = 'F';
@@ -967,7 +967,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
               },
             ),
             ListTile(
-              title: const Text('E - 초급+'),
+              title: const Text('E'),
               onTap: () {
                 setState(() {
                   _selectedDifficulty = 'E';
@@ -976,7 +976,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
               },
             ),
             ListTile(
-              title: const Text('D - 중급'),
+              title: const Text('D'),
               onTap: () {
                 setState(() {
                   _selectedDifficulty = 'D';
@@ -985,7 +985,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
               },
             ),
             ListTile(
-              title: const Text('C - 중급+'),
+              title: const Text('C'),
               onTap: () {
                 setState(() {
                   _selectedDifficulty = 'C';
@@ -994,7 +994,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
               },
             ),
             ListTile(
-              title: const Text('B - 고급'),
+              title: const Text('B'),
               onTap: () {
                 setState(() {
                   _selectedDifficulty = 'B';
@@ -1003,7 +1003,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
               },
             ),
             ListTile(
-              title: const Text('A - 최고급'),
+              title: const Text('A'),
               onTap: () {
                 setState(() {
                   _selectedDifficulty = 'A';
