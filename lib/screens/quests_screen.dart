@@ -469,6 +469,8 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                             ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
                             : Theme.of(context).colorScheme.onSurface,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -526,6 +528,8 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
                     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     decoration: quest.isCompleted ? TextDecoration.lineThrough : null,
                   ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
               
