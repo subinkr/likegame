@@ -389,74 +389,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   
                   const SizedBox(height: 16),
                   
-                  // 통계 정보 카드
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '활동 통계'.withKoreanWordBreak,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        if (_isLoadingStats)
-                          const Center(child: CircularProgressIndicator())
-                        else
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatItem(
-                                  icon: Icons.badge,
-                                  title: '스킬',
-                                  value: '${_skills.length}',
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildStatItem(
-                                  icon: Icons.task_alt,
-                                  title: '완료한 퀘스트',
-                                  value: '$_completedQuests개',
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
                   // 스탯 목록 카드
                   if (!_isLoadingStats && _skills.isNotEmpty)
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardTheme.color,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
+                            blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
                         ],
@@ -471,7 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           ..._skills.take(5).map((skill) => _buildSkillItem(skill)),
                           if (_skills.length > 5)
                             Padding(
@@ -488,6 +432,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // 통계 정보 카드 (컴팩트)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardTheme.color,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        if (_isLoadingStats)
+                          const Expanded(child: Center(child: CircularProgressIndicator()))
+                        else ...[
+                          Expanded(
+                            child: _buildCompactStatItem(
+                              icon: Icons.badge,
+                              title: '스킬',
+                              value: '${_skills.length}',
+                              color: Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildCompactStatItem(
+                              icon: Icons.task_alt,
+                              title: '완료한 퀘스트',
+                              value: '$_completedQuests',
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   
                   const SizedBox(height: 24),
                   
@@ -602,6 +590,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildCompactStatItem({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: color,
+          size: 20,
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: color.withOpacity(0.8),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildSkillItem(SkillProgress skill) {
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -687,3 +713,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+
