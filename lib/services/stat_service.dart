@@ -434,6 +434,18 @@ class StatService {
   // 성취 배지 해금
   Future<void> unlockAchievement(String userId, String achievementId) async {
     try {
+      // 먼저 해당 배지가 존재하는지 확인
+      final achievementResponse = await _supabase
+          .from('achievements')
+          .select('id')
+          .eq('id', achievementId)
+          .maybeSingle();
+      
+      if (achievementResponse == null) {
+        print('존재하지 않는 배지 ID: $achievementId');
+        return;
+      }
+      
       await _supabase
           .from('user_achievements')
           .upsert({
@@ -442,7 +454,8 @@ class StatService {
             'unlocked_at': DateTime.now().toIso8601String(),
           });
     } catch (e) {
-      rethrow;
+      // 오류가 발생해도 기본 기능은 계속 작동하도록
+      print('배지 해금 중 오류: $e');
     }
   }
 
@@ -456,10 +469,12 @@ class StatService {
             'stat_id': statId,
             'current_streak': currentStreak,
             'best_streak': bestStreak,
+            'last_activity_date': DateTime.now().toIso8601String().split('T')[0], // 날짜만 저장
             'updated_at': DateTime.now().toIso8601String(),
           });
     } catch (e) {
-      rethrow;
+      // 오류가 발생해도 기본 기능은 계속 작동하도록
+      print('스트릭 업데이트 중 오류: $e');
     }
   }
 
@@ -526,15 +541,15 @@ class StatService {
         await unlockAchievement(userId, 'first_milestone');
       }
       
-      // 마일스톤 개수별 배지
+      // 마일스톤 개수별 배지 (실제 배지 ID 사용)
       if (totalCompleted == 10) {
-        await unlockAchievement(userId, 'milestone_10');
+        await unlockAchievement(userId, 'milestone_count_10');
       }
       if (totalCompleted == 50) {
-        await unlockAchievement(userId, 'milestone_50');
+        await unlockAchievement(userId, 'milestone_count_50');
       }
       if (totalCompleted == 100) {
-        await unlockAchievement(userId, 'milestone_100');
+        await unlockAchievement(userId, 'milestone_count_100');
       }
 
       // 랭크 업 배지 확인
@@ -564,21 +579,21 @@ class StatService {
       // 현재 스탯의 완료된 마일스톤 수 확인
       final completedCount = await getCompletedMilestonesCount(userId, statId);
       
-      // 랭크별 배지 해금
+      // 랭크별 배지 해금 (실제 배지 ID 사용)
       if (completedCount == 20) { // E랭크 달성
-        await unlockAchievement(userId, 'rank_e');
+        await unlockAchievement(userId, 'rank_up');
       }
       if (completedCount == 40) { // D랭크 달성
-        await unlockAchievement(userId, 'rank_d');
+        await unlockAchievement(userId, 'rank_up');
       }
       if (completedCount == 60) { // C랭크 달성
-        await unlockAchievement(userId, 'rank_c');
+        await unlockAchievement(userId, 'rank_up');
       }
       if (completedCount == 80) { // B랭크 달성
-        await unlockAchievement(userId, 'rank_b');
+        await unlockAchievement(userId, 'rank_up');
       }
       if (completedCount == 100) { // A랭크 달성
-        await unlockAchievement(userId, 'rank_a');
+        await unlockAchievement(userId, 'rank_up');
       }
     } catch (e) {
       print('랭크 업 배지 확인 중 오류: $e');
@@ -645,12 +660,12 @@ class StatService {
       // 스트릭 업데이트
       await updateStreak(userId, statId, newCurrentStreak, bestStreak);
       
-      // 스트릭 배지 확인
+      // 스트릭 배지 확인 (실제 배지 ID 사용)
       if (newCurrentStreak == 7) {
-        await unlockAchievement(userId, 'streak_7');
+        await unlockAchievement(userId, 'daily_streak');
       }
       if (newCurrentStreak == 30) {
-        await unlockAchievement(userId, 'streak_30');
+        await unlockAchievement(userId, 'daily_streak');
       }
     } catch (e) {
       print('스트릭 업데이트 중 오류: $e');
