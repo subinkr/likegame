@@ -92,9 +92,13 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   List<Quest> get _filteredQuests {
     List<Quest> filtered = _quests;
     
-    // 완료 상태 필터
-    if (!_showCompleted) {
-      filtered = filtered.where((quest) => !quest.isCompleted).toList();
+    // 검색 필터
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((quest) => 
+        quest.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+        (quest.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+        quest.tags.any((tag) => tag.toLowerCase().contains(_searchQuery.toLowerCase()))
+      ).toList();
     }
     
     // 카테고리 필터
@@ -110,15 +114,6 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
     // 태그 필터
     if (_selectedTag != null) {
       filtered = filtered.where((quest) => quest.tags.contains(_selectedTag)).toList();
-    }
-    
-    // 검색 필터
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((quest) => 
-        quest.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        (quest.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-        quest.tags.any((tag) => tag.toLowerCase().contains(_searchQuery.toLowerCase()))
-      ).toList();
     }
     
     // 정렬
@@ -1428,7 +1423,36 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   }
 
   Future<void> _toggleQuestProgress(Quest quest) async {
-    // 새로운 진행 상태 토글 구현
+    try {
+      if (quest.isInProgress) {
+        // 진행 중인 경우 일시정지
+        await _questService.pauseTimeTracking(quest.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('퀘스트를 일시정지했습니다'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        // 진행 중이 아닌 경우 시작
+        await _questService.startTimeTracking(quest.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('퀘스트를 시작했습니다'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+      
+      _loadData();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('퀘스트 진행 상태 변경 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _duplicateQuest(Quest quest) async {

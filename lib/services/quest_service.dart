@@ -148,12 +148,23 @@ class QuestService {
   // 퀘스트 완료/미완료 토글
   Future<Quest> toggleQuest(String questId, bool isCompleted) async {
     try {
+      final updateData = {
+        'is_completed': isCompleted,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      // 완료하는 경우 시간 추적 중지
+      if (isCompleted) {
+        updateData['paused_at'] = DateTime.now().toIso8601String();
+        updateData['completed_at'] = DateTime.now().toIso8601String();
+      } else {
+        // 미완료로 되돌리는 경우 완료 시간 제거
+        updateData.remove('completed_at');
+      }
+
       final response = await _supabase
           .from('quests')
-          .update({
-            'is_completed': isCompleted,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .update(updateData)
           .eq('id', questId)
           .select()
           .single();
@@ -227,12 +238,23 @@ class QuestService {
         startTime: now,
       );
 
+      // 현재 퀘스트 가져오기
+      final currentQuest = await _supabase
+          .from('quests')
+          .select('*')
+          .eq('id', questId)
+          .single();
+      
+      final quest = Quest.fromJson(currentQuest);
+      final timeEntries = List<TimeEntry>.from(quest.timeEntries);
+      timeEntries.add(timeEntry);
+
       final response = await _supabase
           .from('quests')
           .update({
             'started_at': now.toIso8601String(),
             'paused_at': null,
-            'time_entries': [timeEntry.toJson()],
+            'time_entries': timeEntries.map((entry) => entry.toJson()).toList(),
             'updated_at': now.toIso8601String(),
           })
           .eq('id', questId)
