@@ -494,6 +494,7 @@ class QuestService {
         tags: originalQuest.tags,
         subTasks: originalQuest.subTasks,
         priority: originalQuest.priority,
+        difficulty: originalQuest.difficulty,
         estimatedMinutes: originalQuest.estimatedMinutes,
         repeatPattern: originalQuest.repeatPattern,
         repeatConfig: originalQuest.repeatConfig,

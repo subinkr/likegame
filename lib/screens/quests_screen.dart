@@ -1908,7 +1908,25 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   }
 
   Future<void> _duplicateQuest(Quest quest) async {
-    // 새로운 복제 기능 구현
+    try {
+      final userId = context.read<UserProvider>().currentUserId!;
+      await _questService.duplicateQuest(userId, quest);
+      _loadData();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('퀘스트가 복제되었습니다'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('퀘스트 복제 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _showDeleteQuestDialog(Quest quest) async {
