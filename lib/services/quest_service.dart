@@ -179,6 +179,45 @@ class QuestService {
     }
   }
 
+  // 퀘스트 진행중 상태 토글
+  Future<Quest> toggleQuestProgress(String questId) async {
+    try {
+      // 현재 퀘스트 상태 확인
+      final currentQuest = await _supabase
+          .from('quests')
+          .select('*')
+          .eq('id', questId)
+          .single();
+      
+      final quest = Quest.fromJson(currentQuest);
+      final isCurrentlyInProgress = quest.isInProgress;
+      
+      final updateData = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (isCurrentlyInProgress) {
+        // 진행중이면 중지
+        updateData['started_at'] = null;
+      } else {
+        // 진행중이 아니면 시작
+        updateData['started_at'] = DateTime.now().toIso8601String();
+      }
+
+      final response = await _supabase
+          .from('quests')
+          .update(updateData)
+          .eq('id', questId)
+          .select()
+          .single();
+
+      return Quest.fromJson(response);
+    } catch (e) {
+      print('퀘스트 진행 상태 토글 실패: $e');
+      rethrow;
+    }
+  }
+
   // 퀘스트 삭제
   Future<void> deleteQuest(String questId) async {
     try {

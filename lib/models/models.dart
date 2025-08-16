@@ -287,7 +287,7 @@ class Quest {
   final Map<String, dynamic>? repeatConfig;
   final int estimatedMinutes;
   final int actualMinutes;
-
+  final DateTime? startedAt;
 
   final String? templateId;
   final Map<String, dynamic>? customFields;
@@ -312,6 +312,7 @@ class Quest {
     this.repeatConfig,
     this.estimatedMinutes = 0,
     this.actualMinutes = 0,
+    this.startedAt,
 
     this.templateId,
     this.customFields,
@@ -346,7 +347,9 @@ class Quest {
           : null,
       estimatedMinutes: json['estimated_minutes'] ?? 0,
       actualMinutes: json['actual_minutes'] ?? 0,
-
+      startedAt: json['started_at'] != null 
+          ? DateTime.parse(json['started_at']) 
+          : null,
 
       templateId: json['template_id'],
       customFields: json['custom_fields'] != null 
@@ -376,7 +379,7 @@ class Quest {
       'repeat_config': repeatConfig,
       'estimated_minutes': estimatedMinutes,
       'actual_minutes': actualMinutes,
-
+      'started_at': startedAt?.toIso8601String(),
 
       'template_id': templateId,
       'custom_fields': customFields,
@@ -483,7 +486,7 @@ class Quest {
     return completedCount / subTasks.length;
   }
 
-  bool get isInProgress => false; // 시간 추적 기능이 제거됨
+  bool get isInProgress => startedAt != null && !isCompleted;
 
   String get timeSpentText {
     return '시간 추적 기능이 제거됨';

@@ -1896,13 +1896,24 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   }
 
   Future<void> _toggleQuestProgress(Quest quest) async {
-    // 시간 추적 기능이 제거되어 비활성화됨
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('시간 추적 기능이 제거되었습니다'),
-        backgroundColor: Colors.grey,
-      ),
-    );
+    try {
+      await _questService.toggleQuestProgress(quest.id);
+      _loadData();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(quest.isInProgress ? '퀘스트를 중지했습니다' : '퀘스트를 시작했습니다'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('퀘스트 진행 상태 변경 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _duplicateQuest(Quest quest) async {
