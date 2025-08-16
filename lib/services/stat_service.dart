@@ -519,8 +519,8 @@ class StatService {
         milestoneDescription: milestoneDescription,
       );
 
-      // 2. 성취 배지 확인 및 해금
-      await checkAndUnlockAchievements(userId, statId);
+      // 2. 성취 배지 확인 및 해금 (일시적으로 비활성화)
+      // await checkAndUnlockAchievements(userId, statId);
 
       // 3. 스트릭 업데이트
       await updateStreakOnMilestone(userId, statId);
@@ -660,13 +660,13 @@ class StatService {
       // 스트릭 업데이트
       await updateStreak(userId, statId, newCurrentStreak, bestStreak);
       
-      // 스트릭 배지 확인 (실제 배지 ID 사용)
-      if (newCurrentStreak == 7) {
-        await unlockAchievement(userId, 'daily_streak');
-      }
-      if (newCurrentStreak == 30) {
-        await unlockAchievement(userId, 'daily_streak');
-      }
+      // 스트릭 배지 확인 (일시적으로 비활성화)
+      // if (newCurrentStreak == 7) {
+      //   await unlockAchievement(userId, 'daily_streak');
+      // }
+      // if (newCurrentStreak == 30) {
+      //   await unlockAchievement(userId, 'daily_streak');
+      // }
     } catch (e) {
       print('스트릭 업데이트 중 오류: $e');
     }

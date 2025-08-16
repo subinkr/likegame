@@ -35,7 +35,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // 성취 탭 제거로 2개로 변경
     _loadData();
     _subscribeToMilestoneChanges();
   }
@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       final allSkills = await _statService.getUserSkillsProgress(user.id);
       final priorities = await _priorityService.getUserStatPriorities(user.id);
       final performanceStats = await _statService.getStatPerformance(user.id);
-      final achievements = await _statService.getUserAchievements(user.id);
+      // final achievements = await _statService.getUserAchievements(user.id); // 일시적으로 비활성화
 
       // 마일스톤이 있는 스탯만 필터링
       final skillsWithMilestones = allSkills.where((skill) => skill.completedCount >= 0).toList();
@@ -80,7 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           _skillsWithMilestones = skillsWithMilestones;
           _priorities = priorities;
           _performanceStats = performanceStats;
-          _achievements = achievements;
+          // _achievements = achievements; // 일시적으로 비활성화
           _isLoading = false;
         });
       }
@@ -134,7 +134,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     tabs: const [
                       Tab(text: '스탯', icon: Icon(Icons.analytics)),
                       Tab(text: '성과', icon: Icon(Icons.trending_up)),
-                      Tab(text: '성취', icon: Icon(Icons.emoji_events)),
+                      // Tab(text: '성취', icon: Icon(Icons.emoji_events)), // 일시적으로 비활성화
                     ],
                     labelColor: Colors.white,
                     unselectedLabelColor: Colors.white70,
@@ -149,7 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     children: [
                       _buildStatsTab(),
                       _buildPerformanceTab(),
-                      _buildAchievementsTab(),
+                      // _buildAchievementsTab(), // 일시적으로 비활성화
                     ],
                   ),
                 ),
