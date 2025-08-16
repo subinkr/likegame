@@ -427,7 +427,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
                           Icon(
-                            Icons.emoji_events_outlined,
+                            Icons.badge,
                             size: 80,
                             color: Colors.grey[400],
                           ),
