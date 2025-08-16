@@ -408,14 +408,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '스탯'.withKoreanWordBreak,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
                           ..._skills.take(5).map((skill) => _buildSkillItem(skill)),
                           if (_skills.length > 5)
                             Padding(
@@ -451,26 +443,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (_isLoadingStats)
-                          const Expanded(child: Center(child: CircularProgressIndicator()))
+                          const CircularProgressIndicator()
                         else ...[
-                          Expanded(
-                            child: _buildCompactStatItem(
-                              icon: Icons.badge,
-                              title: '스킬',
-                              value: '${_skills.length}',
-                              color: Colors.blue,
-                            ),
+                          _buildCompactStatItem(
+                            icon: Icons.badge,
+                            title: '스킬',
+                            value: '${_skills.length}',
+                            color: Colors.blue,
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildCompactStatItem(
-                              icon: Icons.task_alt,
-                              title: '완료한 퀘스트',
-                              value: '$_completedQuests',
-                              color: Colors.green,
-                            ),
+                          const SizedBox(width: 32),
+                          _buildCompactStatItem(
+                            icon: Icons.task_alt,
+                            title: '완료한 퀘스트',
+                            value: '$_completedQuests',
+                            color: Colors.green,
                           ),
                         ],
                       ],
