@@ -13,19 +13,42 @@ class QuestsScreen extends StatefulWidget {
   State<QuestsScreen> createState() => _QuestsScreenState();
 }
 
-class _QuestsScreenState extends State<QuestsScreen> {
+class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixin {
   final QuestService _questService = QuestService();
   final StatService _statService = StatService();
   
   List<Quest> _quests = [];
   List<Stat> _stats = [];
+  List<QuestTemplate> _templates = [];
   bool _isLoading = true;
   bool _showCompleted = false;
+  
+  // 필터링 및 정렬
+  String? _selectedCategory;
+  String? _selectedPriority;
+  String? _selectedTag;
+  String _sortBy = 'dueDate'; // 'dueDate', 'priority', 'createdAt', 'title'
+  bool _sortAscending = true;
+  
+  // 탭 컨트롤러
+  late TabController _tabController;
+  
+  // 검색
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -37,10 +60,12 @@ class _QuestsScreenState extends State<QuestsScreen> {
       final userId = context.read<UserProvider>().currentUserId!;
       final quests = await _questService.getUserQuests(userId);
       final stats = await _statService.getAllStats();
+      final templates = await _questService.getUserTemplates(userId);
 
       setState(() {
         _quests = quests;
         _stats = stats;
+        _templates = templates;
         _isLoading = false;
       });
     } catch (e) {
@@ -57,13 +82,856 @@ class _QuestsScreenState extends State<QuestsScreen> {
   }
 
   List<Quest> get _filteredQuests {
-    if (_showCompleted) {
-      return _quests;
-    } else {
-      return _quests.where((quest) => !quest.isCompleted).toList();
+    List<Quest> filtered = _quests;
+    
+    // 완료 상태 필터
+    if (!_showCompleted) {
+      filtered = filtered.where((quest) => !quest.isCompleted).toList();
+    }
+    
+    // 카테고리 필터
+    if (_selectedCategory != null) {
+      filtered = filtered.where((quest) => quest.category == _selectedCategory).toList();
+    }
+    
+    // 우선순위 필터
+    if (_selectedPriority != null) {
+      filtered = filtered.where((quest) => quest.priority == _selectedPriority).toList();
+    }
+    
+    // 태그 필터
+    if (_selectedTag != null) {
+      filtered = filtered.where((quest) => quest.tags.contains(_selectedTag)).toList();
+    }
+    
+    // 검색 필터
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((quest) => 
+        quest.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+        (quest.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+        quest.tags.any((tag) => tag.toLowerCase().contains(_searchQuery.toLowerCase()))
+      ).toList();
+    }
+    
+    // 정렬
+    filtered.sort((a, b) {
+      int comparison = 0;
+      switch (_sortBy) {
+        case 'dueDate':
+          if (a.dueDate == null && b.dueDate == null) comparison = 0;
+          else if (a.dueDate == null) comparison = 1;
+          else if (b.dueDate == null) comparison = -1;
+          else comparison = a.dueDate!.compareTo(b.dueDate!);
+          break;
+        case 'priority':
+          final priorityOrder = {'highest': 4, 'high': 3, 'normal': 2, 'low': 1};
+          comparison = (priorityOrder[a.priority] ?? 0).compareTo(priorityOrder[b.priority] ?? 0);
+          break;
+        case 'createdAt':
+          comparison = a.createdAt.compareTo(b.createdAt);
+          break;
+        case 'title':
+          comparison = a.title.compareTo(b.title);
+          break;
+      }
+      return _sortAscending ? comparison : -comparison;
+    });
+    
+    return filtered;
+  }
+
+  List<String> get _categories {
+    final categories = _quests.map((q) => q.category).where((c) => c != null).cast<String>().toSet();
+    return categories.toList()..sort();
+  }
+
+  List<String> get _tags {
+    final tags = <String>{};
+    for (final quest in _quests) {
+      tags.addAll(quest.tags);
+    }
+    return tags.toList()..sort();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // 검색 및 필터 헤더
+                _buildSearchAndFilterHeader(),
+                
+                // 탭 바
+                TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(text: '퀘스트'),
+                    Tab(text: '진행중'),
+                    Tab(text: '완료'),
+                  ],
+                  labelColor: Theme.of(context).primaryColor,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Theme.of(context).primaryColor,
+                ),
+                
+                // 탭 뷰
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildQuestTab(),
+                      _buildInProgressTab(),
+                      _buildCompletedTab(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddQuestDialog,
+        backgroundColor: Theme.of(context).primaryColor,
+        heroTag: 'quests_fab',
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('퀘스트 추가', style: TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilterHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          // 검색바
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: '퀘스트 검색...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 필터 칩들
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // 카테고리 필터
+                if (_categories.isNotEmpty) ...[
+                  FilterChip(
+                    label: Text(_selectedCategory ?? '카테고리'),
+                    selected: _selectedCategory != null,
+                    onSelected: (selected) {
+                      if (selected) {
+                        _showCategoryFilterDialog();
+                      } else {
+                        setState(() {
+                          _selectedCategory = null;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                
+                // 우선순위 필터
+                FilterChip(
+                  label: Text(_selectedPriority != null ? _getPriorityText(_selectedPriority!) : '우선순위'),
+                  selected: _selectedPriority != null,
+                  onSelected: (selected) {
+                    if (selected) {
+                      _showPriorityFilterDialog();
+                    } else {
+                      setState(() {
+                        _selectedPriority = null;
+                      });
+                    }
+                  },
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // 태그 필터
+                if (_tags.isNotEmpty) ...[
+                  FilterChip(
+                    label: Text(_selectedTag ?? '태그'),
+                    selected: _selectedTag != null,
+                    onSelected: (selected) {
+                      if (selected) {
+                        _showTagFilterDialog();
+                      } else {
+                        setState(() {
+                          _selectedTag = null;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                
+                // 정렬
+                FilterChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_getSortText()),
+                      Icon(
+                        _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  selected: false,
+                  onSelected: (_) => _showSortDialog(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestTab() {
+    final activeQuests = _filteredQuests.where((q) => !q.isCompleted && !q.isInProgress).toList();
+    
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: activeQuests.isEmpty
+          ? _buildEmptyState('진행 대기 중인 퀘스트가 없습니다')
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: activeQuests.length,
+              itemBuilder: (context, index) {
+                final quest = activeQuests[index];
+                return _buildAdvancedQuestCard(quest);
+              },
+            ),
+    );
+  }
+
+  Widget _buildInProgressTab() {
+    final inProgressQuests = _filteredQuests.where((q) => q.isInProgress).toList();
+    
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: inProgressQuests.isEmpty
+          ? _buildEmptyState('진행 중인 퀘스트가 없습니다')
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: inProgressQuests.length,
+              itemBuilder: (context, index) {
+                final quest = inProgressQuests[index];
+                return _buildAdvancedQuestCard(quest);
+              },
+            ),
+    );
+  }
+
+  Widget _buildCompletedTab() {
+    final completedQuests = _filteredQuests.where((q) => q.isCompleted).toList();
+    
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: completedQuests.isEmpty
+          ? _buildEmptyState('완료된 퀘스트가 없습니다')
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: completedQuests.length,
+              itemBuilder: (context, index) {
+                final quest = completedQuests[index];
+                return _buildAdvancedQuestCard(quest);
+              },
+            ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.task_alt,
+            size: 80,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message.withKoreanWordBreak,
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '새로운 퀘스트를 추가해보세요!'.withKoreanWordBreak,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvancedQuestCard(Quest quest) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: quest.isOverdue ? Colors.red.withOpacity(0.3) : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: InkWell(
+        onTap: () => _showQuestDetailDialog(quest),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 헤더 (제목, 우선순위, 상태)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      quest.title.withKoreanWordBreak,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        decoration: quest.isCompleted ? TextDecoration.lineThrough : null,
+                        color: quest.isCompleted 
+                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _buildPriorityChip(quest.priority),
+                  if (quest.isInProgress) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_arrow, size: 16, color: Colors.blue),
+                          SizedBox(width: 4),
+                          Text('진행중', style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              
+              // 설명
+              if (quest.description != null && quest.description!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  quest.description!.withKoreanWordBreak,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    decoration: quest.isCompleted ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+              ],
+              
+              // 진행률 (서브태스크가 있는 경우)
+              if (quest.subTasks.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '진행률',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                        Text(
+                          '${(quest.progressPercentage * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: quest.progressPercentage,
+                      backgroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                      valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                    ),
+                  ],
+                ),
+              ],
+              
+              // 태그들
+              if (quest.tags.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: quest.tags.map((tag) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '#$tag',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ],
+              
+              const SizedBox(height: 16),
+              
+              // 하단 정보
+              Row(
+                children: [
+                  // 카테고리
+                  if (quest.category != null) ...[
+                    Icon(
+                      Icons.folder_outlined,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      quest.category!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+                  
+                  // 마감일
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: quest.isOverdue ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    quest.dueDateText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: quest.isOverdue ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      fontWeight: quest.isOverdue ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 16),
+                  
+                  // 예상 시간
+                  if (quest.estimatedMinutes > 0) ...[
+                    Icon(
+                      Icons.schedule,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      quest.estimatedTimeText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                  
+                  const Spacer(),
+                  
+                  // 액션 버튼들
+                  if (!quest.isCompleted) ...[
+                    IconButton(
+                      icon: Icon(
+                        quest.isInProgress ? Icons.pause : Icons.play_arrow,
+                        color: quest.isInProgress ? Colors.orange : Colors.green,
+                      ),
+                      onPressed: () => _toggleQuestProgress(quest),
+                      tooltip: quest.isInProgress ? '일시정지' : '시작',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.check_circle_outline, color: Colors.blue),
+                      onPressed: () => _toggleQuest(quest),
+                      tooltip: '완료',
+                    ),
+                  ],
+                  
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'edit':
+                          _showEditQuestDialog(quest);
+                          break;
+                        case 'duplicate':
+                          _duplicateQuest(quest);
+                          break;
+                        case 'delete':
+                          _showDeleteQuestDialog(quest);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('수정'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'duplicate',
+                        child: Row(
+                          children: [
+                            Icon(Icons.copy, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text('복제'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('삭제'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriorityChip(String priority) {
+    final color = _getPriorityColor(priority);
+    final text = _getPriorityText(priority);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case 'low':
+        return Colors.grey;
+      case 'normal':
+        return Colors.green;
+      case 'high':
+        return Colors.orange;
+      case 'highest':
+        return Colors.red;
+      default:
+        return Colors.green;
     }
   }
 
+  String _getPriorityText(String priority) {
+    switch (priority) {
+      case 'low':
+        return '낮음';
+      case 'normal':
+        return '보통';
+      case 'high':
+        return '높음';
+      case 'highest':
+        return '긴급';
+      default:
+        return '보통';
+    }
+  }
+
+  String _getSortText() {
+    switch (_sortBy) {
+      case 'dueDate':
+        return '마감일';
+      case 'priority':
+        return '우선순위';
+      case 'createdAt':
+        return '생성일';
+      case 'title':
+        return '제목';
+      default:
+        return '정렬';
+    }
+  }
+
+  // 다이얼로그 메서드들
+  void _showCategoryFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('카테고리 선택'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _categories.map((category) => ListTile(
+            title: Text(category),
+            onTap: () {
+              setState(() {
+                _selectedCategory = category;
+              });
+              Navigator.of(context).pop();
+            },
+          )).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPriorityFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('우선순위 선택'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('낮음'),
+              onTap: () {
+                setState(() {
+                  _selectedPriority = 'low';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('보통'),
+              onTap: () {
+                setState(() {
+                  _selectedPriority = 'normal';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('높음'),
+              onTap: () {
+                setState(() {
+                  _selectedPriority = 'high';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('긴급'),
+              onTap: () {
+                setState(() {
+                  _selectedPriority = 'highest';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTagFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('태그 선택'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _tags.map((tag) => ListTile(
+            title: Text('#$tag'),
+            onTap: () {
+              setState(() {
+                _selectedTag = tag;
+              });
+              Navigator.of(context).pop();
+            },
+          )).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSortDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('정렬 기준'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('마감일'),
+              onTap: () {
+                setState(() {
+                  _sortBy = 'dueDate';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('우선순위'),
+              onTap: () {
+                setState(() {
+                  _sortBy = 'priority';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('생성일'),
+              onTap: () {
+                setState(() {
+                  _sortBy = 'createdAt';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              title: const Text('제목'),
+              onTap: () {
+                setState(() {
+                  _sortBy = 'title';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _sortAscending = !_sortAscending;
+              });
+              Navigator.of(context).pop();
+            },
+            child: Text(_sortAscending ? '내림차순' : '오름차순'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 기존 메서드들 (간단한 버전으로 유지)
   Future<void> _showAddQuestDialog() async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -526,6 +1394,10 @@ class _QuestsScreenState extends State<QuestsScreen> {
     );
   }
 
+  Future<void> _showQuestDetailDialog(Quest quest) async {
+    // 새로운 상세 다이얼로그 구현
+  }
+
   Future<void> _toggleQuest(Quest quest) async {
     try {
       await _questService.toggleQuest(quest.id, !quest.isCompleted);
@@ -545,6 +1417,14 @@ class _QuestsScreenState extends State<QuestsScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _toggleQuestProgress(Quest quest) async {
+    // 새로운 진행 상태 토글 구현
+  }
+
+  Future<void> _duplicateQuest(Quest quest) async {
+    // 새로운 복제 기능 구현
   }
 
   Future<void> _showDeleteQuestDialog(Quest quest) async {
@@ -584,248 +1464,6 @@ class _QuestsScreenState extends State<QuestsScreen> {
             child: const Text('삭제'),
           ),
         ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: Column(
-                children: [
-                  // 완료된 퀘스트 토글 버튼
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _showCompleted = !_showCompleted;
-                            });
-                          },
-                          icon: Icon(
-                            _showCompleted ? Icons.check_circle : Icons.check_circle_outline,
-                            size: 20,
-                          ),
-                          label: Text(
-                            _showCompleted ? '완료된 퀘스트 숨기기' : '완료된 퀘스트 보기',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // 퀘스트 리스트
-                  Expanded(
-                    child: _filteredQuests.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.task_alt,
-                            size: 80,
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _showCompleted 
-                                ? '완료된 퀘스트가 없습니다'.withKoreanWordBreak
-                                : '등록된 퀘스트가 없습니다'.withKoreanWordBreak,
-                            style: TextStyle(
-                              fontSize: 18,
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '퀘스트를 추가해보세요!'.withKoreanWordBreak,
-                            style: TextStyle(
-                              fontSize: 14,
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _filteredQuests.length,
-                      itemBuilder: (context, index) {
-                        final quest = _filteredQuests[index];
-                        return _buildQuestCard(quest);
-                      },
-                          ),
-                  ),
-                ],
-                    ),
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddQuestDialog,
-        backgroundColor: Theme.of(context).primaryColor,
-        heroTag: 'quests_fab',
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _buildQuestCard(Quest quest) {
-    final stat = _stats.where((s) => s.id == quest.statId).firstOrNull;
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => _toggleQuest(quest),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-              // 제목
-              Text(
-                quest.title.withKoreanWordBreak,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  decoration: quest.isCompleted ? TextDecoration.lineThrough : null,
-                  color: quest.isCompleted ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5) : Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              
-              // 설명 (있는 경우에만)
-              if (quest.description != null && quest.description!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  quest.description!.withKoreanWordBreak,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                    decoration: quest.isCompleted ? TextDecoration.lineThrough : null,
-                ),
-              ),
-            ],
-              
-              const SizedBox(height: 12),
-              
-              // 하단 정보 (우선순위, 마감일)
-              Row(
-                children: [
-                  // 우선순위
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: quest.priorityColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: quest.priorityColor.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                          width: 8,
-                          height: 8,
-                  decoration: BoxDecoration(
-                            color: quest.priorityColor,
-                            borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  quest.priorityText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: quest.priorityColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(width: 8),
-                  
-                  // 마감일
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: quest.isOverdue ? Colors.red.withOpacity(0.1) : Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: quest.isOverdue ? Colors.red.withOpacity(0.3) : Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 12,
-                          color: quest.isOverdue ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                        ),
-                        const SizedBox(width: 4),
-                Text(
-                  quest.dueDateText,
-                  style: TextStyle(
-                    fontSize: 12,
-                            color: quest.isOverdue ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                    fontWeight: quest.isOverdue ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-                  ),
-                  
-                  const Spacer(),
-                  
-                  // 메뉴 버튼
-                  PopupMenuButton<String>(
-          onSelected: (value) {
-                      if (value == 'edit') {
-                        _showEditQuestDialog(quest);
-                      } else if (value == 'delete') {
-              _showDeleteQuestDialog(quest);
-            }
-          },
-          itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, color: Colors.blue),
-                            SizedBox(width: 8),
-                            Text('수정'),
-                          ],
-                        ),
-                      ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('삭제'),
-                ],
-              ),
-            ),
-          ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
