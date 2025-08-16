@@ -610,21 +610,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Color _getRankColor(String rank) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     switch (rank) {
       case 'F':
-        return Colors.grey;
+        return isDark ? const Color(0xFF9E9E9E) : Colors.grey;
       case 'E':
-        return Colors.blue;
+        return isDark ? const Color(0xFF8D6E63) : Colors.brown;
       case 'D':
-        return Colors.green;
+        return isDark ? const Color(0xFFFF9800) : Colors.orange;
       case 'C':
-        return Colors.yellow.shade700;
+        return isDark ? const Color(0xFFFFC107) : Colors.yellow[700]!;
       case 'B':
-        return Colors.orange;
+        return isDark ? const Color(0xFF03A9F4) : Colors.lightBlue;
       case 'A':
-        return Colors.red;
+        return isDark ? const Color(0xFF9C27B0) : Colors.purple;
       default:
-        return Colors.grey;
+        return isDark ? const Color(0xFF9E9E9E) : Colors.grey;
     }
   }
 
