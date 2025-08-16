@@ -124,6 +124,11 @@ class SkillProgress {
   final int totalCount;
   final String rank;
   final DateTime? lastCompletedAt;
+  final int? targetLevel; // 목표 레벨 추가
+  final DateTime? targetDate; // 목표 날짜 추가
+  final int currentStreak; // 현재 연속 달성 횟수 추가
+  final int bestStreak; // 최고 연속 달성 횟수 추가
+  final List<StatGrowthRecord> growthHistory; // 성장 히스토리 추가
 
   SkillProgress({
     required this.skillId,
@@ -132,18 +137,34 @@ class SkillProgress {
     required this.totalCount,
     required this.rank,
     this.lastCompletedAt,
+    this.targetLevel,
+    this.targetDate,
+    this.currentStreak = 0,
+    this.bestStreak = 0,
+    this.growthHistory = const [],
   });
 
   factory SkillProgress.fromJson(Map<String, dynamic> json) {
     return SkillProgress(
-      skillId: json['stat_id'] ?? json['skill_id'], // 새로운 함수와 기존 함수 모두 지원
-      skillName: json['stat_name'] ?? json['skill_name'], // 새로운 함수와 기존 함수 모두 지원
+      skillId: json['stat_id'] ?? json['skill_id'],
+      skillName: json['stat_name'] ?? json['skill_name'],
       completedCount: json['completed_count'],
       totalCount: json['total_count'],
       rank: json['rank'],
       lastCompletedAt: json['last_completed_at'] != null 
           ? DateTime.parse(json['last_completed_at'])
           : null,
+      targetLevel: json['target_level'],
+      targetDate: json['target_date'] != null 
+          ? DateTime.parse(json['target_date'])
+          : null,
+      currentStreak: json['current_streak'] ?? 0,
+      bestStreak: json['best_streak'] ?? 0,
+      growthHistory: json['growth_history'] != null
+          ? (json['growth_history'] as List)
+              .map((record) => StatGrowthRecord.fromJson(record))
+              .toList()
+          : [],
     );
   }
 
@@ -156,6 +177,207 @@ class SkillProgress {
     final currentRankProgress = completedCount % 20;
     final nextRankThreshold = ((completedCount ~/ 20) + 1) * 20;
     return '$currentRankProgress/20';
+  }
+
+  // 목표 진행도 계산
+  double get targetProgressPercentage {
+    if (targetLevel == null || targetLevel! <= completedCount) return 1.0;
+    return completedCount / targetLevel!;
+  }
+
+  // 목표까지 남은 일수
+  int? get daysUntilTarget {
+    if (targetDate == null) return null;
+    final now = DateTime.now();
+    final difference = targetDate!.difference(now).inDays;
+    return difference > 0 ? difference : 0;
+  }
+
+  // 목표 달성 가능성 (일일 평균 필요 달성 수)
+  double? get requiredDailyProgress {
+    if (targetLevel == null || targetDate == null) return null;
+    final daysLeft = daysUntilTarget;
+    if (daysLeft == null || daysLeft <= 0) return null;
+    final remaining = targetLevel! - completedCount;
+    return remaining / daysLeft;
+  }
+}
+
+// 스탯 성장 기록
+class StatGrowthRecord {
+  final String id;
+  final String statId;
+  final int level;
+  final String rank;
+  final DateTime achievedAt;
+  final String? milestoneDescription;
+
+  StatGrowthRecord({
+    required this.id,
+    required this.statId,
+    required this.level,
+    required this.rank,
+    required this.achievedAt,
+    this.milestoneDescription,
+  });
+
+  factory StatGrowthRecord.fromJson(Map<String, dynamic> json) {
+    return StatGrowthRecord(
+      id: json['id'],
+      statId: json['stat_id'],
+      level: json['level'],
+      rank: json['rank'],
+      achievedAt: DateTime.parse(json['achieved_at']),
+      milestoneDescription: json['milestone_description'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'stat_id': statId,
+      'level': level,
+      'rank': rank,
+      'achieved_at': achievedAt.toIso8601String(),
+      'milestone_description': milestoneDescription,
+    };
+  }
+}
+
+// 스탯 목표
+class StatGoal {
+  final String id;
+  final String userId;
+  final String statId;
+  final int targetLevel;
+  final DateTime targetDate;
+  final String? description;
+  final bool isCompleted;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  StatGoal({
+    required this.id,
+    required this.userId,
+    required this.statId,
+    required this.targetLevel,
+    required this.targetDate,
+    this.description,
+    required this.isCompleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory StatGoal.fromJson(Map<String, dynamic> json) {
+    return StatGoal(
+      id: json['id'],
+      userId: json['user_id'],
+      statId: json['stat_id'],
+      targetLevel: json['target_level'],
+      targetDate: DateTime.parse(json['target_date']),
+      description: json['description'],
+      isCompleted: json['is_completed'] ?? false,
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'stat_id': statId,
+      'target_level': targetLevel,
+      'target_date': targetDate.toIso8601String(),
+      'description': description,
+      'is_completed': isCompleted,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+}
+
+// 성취 배지
+class Achievement {
+  final String id;
+  final String name;
+  final String description;
+  final String icon;
+  final String category;
+  final int requiredValue;
+  final String? condition;
+  final DateTime? unlockedAt;
+
+  Achievement({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.category,
+    required this.requiredValue,
+    this.condition,
+    this.unlockedAt,
+  });
+
+  factory Achievement.fromJson(Map<String, dynamic> json) {
+    return Achievement(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      icon: json['icon'],
+      category: json['category'],
+      requiredValue: json['required_value'],
+      condition: json['condition'],
+      unlockedAt: json['unlocked_at'] != null 
+          ? DateTime.parse(json['unlocked_at'])
+          : null,
+    );
+  }
+
+  bool get isUnlocked => unlockedAt != null;
+}
+
+// 성과 통계
+class StatPerformance {
+  final String statId;
+  final String statName;
+  final int totalCompleted;
+  final int weeklyCompleted;
+  final int monthlyCompleted;
+  final double weeklyGrowth;
+  final double monthlyGrowth;
+  final int currentStreak;
+  final int bestStreak;
+  final DateTime? lastActivity;
+
+  StatPerformance({
+    required this.statId,
+    required this.statName,
+    required this.totalCompleted,
+    required this.weeklyCompleted,
+    required this.monthlyCompleted,
+    required this.weeklyGrowth,
+    required this.monthlyGrowth,
+    required this.currentStreak,
+    required this.bestStreak,
+    this.lastActivity,
+  });
+
+  factory StatPerformance.fromJson(Map<String, dynamic> json) {
+    return StatPerformance(
+      statId: json['stat_id'],
+      statName: json['stat_name'],
+      totalCompleted: json['total_completed'],
+      weeklyCompleted: json['weekly_completed'],
+      monthlyCompleted: json['monthly_completed'],
+      weeklyGrowth: json['weekly_growth']?.toDouble() ?? 0.0,
+      monthlyGrowth: json['monthly_growth']?.toDouble() ?? 0.0,
+      currentStreak: json['current_streak'],
+      bestStreak: json['best_streak'],
+      lastActivity: json['last_activity'] != null 
+          ? DateTime.parse(json['last_activity'])
+          : null,
+    );
   }
 }
 

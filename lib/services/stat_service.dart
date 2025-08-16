@@ -99,14 +99,57 @@ class StatService {
       final response = await _supabase
           .rpc('get_user_all_stats_progress', params: {'p_user_id': userId});
 
-      List<SkillProgress> allProgress = (response as List)
+      List<SkillProgress> skillsProgress = (response as List)
           .map((progress) => SkillProgress.fromJson(progress))
           .toList();
 
       // 마일스톤이 있는 스탯만 필터링
-      return allProgress.where((progress) => 
-          skillIdsWithMilestones.contains(progress.skillId)
-      ).toList();
+      skillsProgress = skillsProgress
+          .where((progress) => skillIdsWithMilestones.contains(progress.skillId))
+          .toList();
+
+      // 각 스탯에 대한 추가 정보 로드
+      for (int i = 0; i < skillsProgress.length; i++) {
+        final skill = skillsProgress[i];
+        
+        // 목표 정보 로드
+        final goal = await getStatGoal(userId, skill.skillId);
+        if (goal != null) {
+          skillsProgress[i] = SkillProgress(
+            skillId: skill.skillId,
+            skillName: skill.skillName,
+            completedCount: skill.completedCount,
+            totalCount: skill.totalCount,
+            rank: skill.rank,
+            lastCompletedAt: skill.lastCompletedAt,
+            targetLevel: goal.targetLevel,
+            targetDate: goal.targetDate,
+            currentStreak: skill.currentStreak,
+            bestStreak: skill.bestStreak,
+            growthHistory: skill.growthHistory,
+          );
+        }
+
+        // 성장 히스토리 로드
+        final growthHistory = await getStatGrowthHistory(userId, skill.skillId);
+        if (growthHistory.isNotEmpty) {
+          skillsProgress[i] = SkillProgress(
+            skillId: skill.skillId,
+            skillName: skill.skillName,
+            completedCount: skill.completedCount,
+            totalCount: skill.totalCount,
+            rank: skill.rank,
+            lastCompletedAt: skill.lastCompletedAt,
+            targetLevel: skillsProgress[i].targetLevel,
+            targetDate: skillsProgress[i].targetDate,
+            currentStreak: skill.currentStreak,
+            bestStreak: skill.bestStreak,
+            growthHistory: growthHistory,
+          );
+        }
+      }
+
+      return skillsProgress;
     } catch (e) {
       rethrow;
     }
@@ -228,6 +271,201 @@ class StatService {
           .toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  // 스탯 목표 설정
+  Future<StatGoal> setStatGoal({
+    required String userId,
+    required String statId,
+    required int targetLevel,
+    required DateTime targetDate,
+    String? description,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('stat_goals')
+          .upsert({
+            'user_id': userId,
+            'stat_id': statId,
+            'target_level': targetLevel,
+            'target_date': targetDate.toIso8601String(),
+            'description': description,
+            'is_completed': false,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      return StatGoal.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 스탯 목표 가져오기
+  Future<StatGoal?> getStatGoal(String userId, String statId) async {
+    try {
+      final response = await _supabase
+          .from('stat_goals')
+          .select()
+          .eq('user_id', userId)
+          .eq('stat_id', statId)
+          .maybeSingle();
+
+      if (response == null) return null;
+      return StatGoal.fromJson(response);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 스탯 목표 삭제
+  Future<void> deleteStatGoal(String goalId) async {
+    try {
+      await _supabase
+          .from('stat_goals')
+          .delete()
+          .eq('id', goalId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 스탯 성장 히스토리 가져오기
+  Future<List<StatGrowthRecord>> getStatGrowthHistory(String userId, String statId) async {
+    try {
+      final response = await _supabase
+          .from('stat_growth_history')
+          .select()
+          .eq('user_id', userId)
+          .eq('stat_id', statId)
+          .order('achieved_at', ascending: false)
+          .limit(50);
+
+      return (response as List)
+          .map((record) => StatGrowthRecord.fromJson(record))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // 성장 기록 추가
+  Future<StatGrowthRecord> addGrowthRecord({
+    required String userId,
+    required String statId,
+    required int level,
+    required String rank,
+    String? milestoneDescription,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('stat_growth_history')
+          .insert({
+            'user_id': userId,
+            'stat_id': statId,
+            'level': level,
+            'rank': rank,
+            'achieved_at': DateTime.now().toIso8601String(),
+            'milestone_description': milestoneDescription,
+          })
+          .select()
+          .single();
+
+      return StatGrowthRecord.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 성과 통계 가져오기
+  Future<List<StatPerformance>> getStatPerformance(String userId) async {
+    try {
+      final response = await _supabase
+          .rpc('get_stat_performance', params: {'p_user_id': userId});
+
+      return (response as List)
+          .map((performance) => StatPerformance.fromJson(performance))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // 성취 배지 가져오기
+  Future<List<Achievement>> getUserAchievements(String userId) async {
+    try {
+      final response = await _supabase
+          .from('user_achievements')
+          .select('*, achievements(*)')
+          .eq('user_id', userId)
+          .order('unlocked_at', ascending: false);
+
+      return (response as List)
+          .map((item) => Achievement.fromJson({
+            ...item['achievements'],
+            'unlocked_at': item['unlocked_at'],
+          }))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // 성취 배지 해금
+  Future<void> unlockAchievement(String userId, String achievementId) async {
+    try {
+      await _supabase
+          .from('user_achievements')
+          .upsert({
+            'user_id': userId,
+            'achievement_id': achievementId,
+            'unlocked_at': DateTime.now().toIso8601String(),
+          });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 스트릭 업데이트
+  Future<void> updateStreak(String userId, String statId, int currentStreak, int bestStreak) async {
+    try {
+      await _supabase
+          .from('user_stat_streaks')
+          .upsert({
+            'user_id': userId,
+            'stat_id': statId,
+            'current_streak': currentStreak,
+            'best_streak': bestStreak,
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 스트릭 정보 가져오기
+  Future<Map<String, int>> getStreakInfo(String userId, String statId) async {
+    try {
+      final response = await _supabase
+          .from('user_stat_streaks')
+          .select()
+          .eq('user_id', userId)
+          .eq('stat_id', statId)
+          .maybeSingle();
+
+      if (response == null) {
+        return {'current': 0, 'best': 0};
+      }
+
+      return {
+        'current': response['current_streak'] ?? 0,
+        'best': response['best_streak'] ?? 0,
+      };
+    } catch (e) {
+      return {'current': 0, 'best': 0};
     }
   }
 
