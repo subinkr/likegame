@@ -379,6 +379,11 @@ class QuestService {
           .map((template) => QuestTemplate.fromJson(template))
           .toList();
     } catch (e) {
+      // 테이블이 존재하지 않는 경우 빈 리스트 반환
+      if (e.toString().contains('quest_templates') || e.toString().contains('PGRST205')) {
+        print('퀘스트 템플릿 테이블이 아직 생성되지 않았습니다. 빈 리스트를 반환합니다.');
+        return [];
+      }
       rethrow;
     }
   }
@@ -416,6 +421,10 @@ class QuestService {
 
       return QuestTemplate.fromJson(response);
     } catch (e) {
+      // 테이블이 존재하지 않는 경우 예외 처리
+      if (e.toString().contains('quest_templates') || e.toString().contains('PGRST205')) {
+        throw Exception('퀘스트 템플릿 기능이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      }
       rethrow;
     }
   }
