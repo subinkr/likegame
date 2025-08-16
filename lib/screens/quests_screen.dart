@@ -128,7 +128,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
           break;
         case 'priority':
           final priorityOrder = {'highest': 4, 'high': 3, 'normal': 2, 'low': 1};
-          comparison = (priorityOrder[a.priority] ?? 0).compareTo(priorityOrder[b.priority] ?? 0);
+          comparison = (priorityOrder[b.priority] ?? 0).compareTo(priorityOrder[a.priority] ?? 0);
           break;
         case 'createdAt':
           comparison = a.createdAt.compareTo(b.createdAt);
