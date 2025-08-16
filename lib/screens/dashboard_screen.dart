@@ -16,7 +16,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen> {
   final AuthService _authService = AuthService();
   final StatService _statService = StatService();
   final PriorityService _priorityService = PriorityService();
@@ -26,16 +26,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   
   List<SkillProgress> _skillsWithMilestones = [];
   List<UserStatPriority> _priorities = [];
-  List<StatPerformance> _performanceStats = [];
-  List<Achievement> _achievements = [];
   bool _isLoading = true;
-  
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // 성취 탭 제거로 2개로 변경
     _loadData();
     _subscribeToMilestoneChanges();
   }
@@ -43,7 +38,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   @override
   void dispose() {
     _milestoneSubscription?.cancel();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -69,8 +63,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
       final allSkills = await _statService.getUserSkillsProgress(user.id);
       final priorities = await _priorityService.getUserStatPriorities(user.id);
-      final performanceStats = await _statService.getStatPerformance(user.id);
-      // final achievements = await _statService.getUserAchievements(user.id); // 일시적으로 비활성화
 
       // 마일스톤이 있는 스탯만 필터링
       final skillsWithMilestones = allSkills.where((skill) => skill.completedCount >= 0).toList();
@@ -79,8 +71,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         setState(() {
           _skillsWithMilestones = skillsWithMilestones;
           _priorities = priorities;
-          _performanceStats = performanceStats;
-          // _achievements = achievements; // 일시적으로 비활성화
           _isLoading = false;
         });
       }
@@ -108,734 +98,104 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       priorityMap[priority.statId] = priority.priorityOrder;
     }
     
-    // 우선순위가 있는 스탯들을 우선순위 순으로 정렬
+    // 우선순위 정순으로 정렬 (우선순위가 없으면 ㄱㄴㄷ 순서)
     final sortedSkills = List<SkillProgress>.from(_skillsWithMilestones);
     sortedSkills.sort((a, b) {
       final aPriority = priorityMap[a.skillId] ?? 999;
       final bPriority = priorityMap[b.skillId] ?? 999;
+      
+      // 우선순위가 같으면 ㄱㄴㄷ 순서로 정렬
+      if (aPriority == bPriority) {
+        return a.skillName.compareTo(b.skillName);
+      }
+      
       return aPriority.compareTo(bPriority);
     });
     
     return sortedSkills;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // 탭 바
-                Container(
-                  color: Theme.of(context).primaryColor,
-                  child: TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                      Tab(text: '스탯', icon: Icon(Icons.analytics)),
-                      Tab(text: '성과', icon: Icon(Icons.trending_up)),
-                      // Tab(text: '성취', icon: Icon(Icons.emoji_events)), // 일시적으로 비활성화
-                    ],
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.white70,
-                    indicatorColor: Colors.white,
-                  ),
-                ),
-                
-                // 탭 뷰
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildStatsTab(),
-                      _buildPerformanceTab(),
-                      // _buildAchievementsTab(), // 일시적으로 비활성화
-                    ],
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildStatsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 목표 요약 카드
-          if (_skillsWithMilestones.any((skill) => skill.targetLevel != null))
-            _buildGoalsSummaryCard(),
-          
-          const SizedBox(height: 16),
-          
-          // 스탯 목록
-          Text(
-            '내 스탯'.withKoreanWordBreak,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+  Future<void> _updatePriorityOrder(String skillId, int newOrder) async {
+    try {
+      final user = _authService.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('로그인이 필요합니다'),
+            backgroundColor: Colors.red,
           ),
-          const SizedBox(height: 16),
-          
-          // 스탯 카드들
-          ..._sortedSkills.map((skill) => _buildStatCard(skill)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPerformanceTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 전체 성과 요약
-          _buildOverallPerformanceCard(),
-          
-          const SizedBox(height: 16),
-          
-          // 스탯별 성과
-          Text(
-            '스탯별 성과'.withKoreanWordBreak,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          if (_performanceStats.isEmpty)
-            _buildEmptyPerformanceMessage()
-          else
-            ..._performanceStats.map((performance) => _buildPerformanceCard(performance)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyPerformanceMessage() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            Icon(
-              Icons.trending_up,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '성과 데이터를 준비 중입니다'.withKoreanWordBreak,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '마일스톤을 달성하면 성과 통계가 표시됩니다'.withKoreanWordBreak,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        );
+        return;
+      }
+      
+      final userId = user.id;
+      
+      // 새로운 순서로 정렬된 스탯 목록 생성
+      final List<SkillProgress> newOrderedSkills = [];
+      
+      // 드래그된 아이템을 제외한 나머지 아이템들
+      final otherSkills = _sortedSkills.where((skill) => skill.skillId != skillId).toList();
+      
+      // newOrder 위치에 드래그된 아이템 삽입
+      for (int i = 0; i < _sortedSkills.length; i++) {
+        if (i == newOrder) {
+          // 드래그된 아이템을 이 위치에 삽입
+          try {
+            final draggedSkill = _sortedSkills.firstWhere((skill) => skill.skillId == skillId);
+            newOrderedSkills.add(draggedSkill);
+          } catch (e) {
+            // skillId를 찾을 수 없는 경우 (이론적으로는 발생하지 않아야 함)
+            print('드래그된 스킬을 찾을 수 없습니다: $skillId');
+            continue;
+          }
+        }
+        
+        // 다른 아이템들 추가
+        if (i < otherSkills.length) {
+          newOrderedSkills.add(otherSkills[i]);
+        }
+      }
+      
+      // 새로운 우선순위로 업데이트
+      final List<Map<String, dynamic>> updates = [];
+      for (int i = 0; i < newOrderedSkills.length; i++) {
+        updates.add({
+          'user_id': userId,
+          'stat_id': newOrderedSkills[i].skillId,
+          'priority_order': i,
+        });
+      }
+      
+      // 기존 우선순위 모두 삭제
+      await _supabase
+          .from('user_stat_priorities')
+          .delete()
+          .eq('user_id', userId);
+      
+      // 새로운 우선순위들 한 번에 삽입
+      if (updates.isNotEmpty) {
+        await _supabase
+            .from('user_stat_priorities')
+            .insert(updates);
+      }
+      
+      // 데이터 다시 로드
+      await _loadData();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('우선순위가 업데이트되었습니다'),
+          backgroundColor: Colors.green,
         ),
-      ),
-    );
-  }
-
-  Widget _buildAchievementsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 성취 요약
-          _buildAchievementsSummaryCard(),
-          
-          const SizedBox(height: 16),
-          
-          // 성취 배지들
-          Text(
-            '획득한 배지'.withKoreanWordBreak,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: _achievements.length,
-            itemBuilder: (context, index) {
-              return _buildAchievementCard(_achievements[index]);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGoalsSummaryCard() {
-    final goals = _skillsWithMilestones.where((skill) => skill.targetLevel != null).toList();
-    final completedGoals = goals.where((skill) => skill.targetProgressPercentage >= 1.0).length;
-    final upcomingGoals = goals.where((skill) => 
-        skill.targetDate != null && skill.daysUntilTarget != null && skill.daysUntilTarget! <= 7
-    ).length;
-
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.flag, color: Theme.of(context).primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  '목표 현황'.withKoreanWordBreak,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildGoalStat('전체 목표', goals.length.toString(), Icons.flag),
-                _buildGoalStat('달성 완료', completedGoals.toString(), Icons.check_circle, Colors.green),
-                _buildGoalStat('임박 목표', upcomingGoals.toString(), Icons.warning, Colors.orange),
-              ],
-            ),
-          ],
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('우선순위 업데이트 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
         ),
-      ),
-    );
-  }
-
-  Widget _buildGoalStat(String label, String value, IconData icon, [Color? color]) {
-    return Column(
-      children: [
-        Icon(icon, color: color ?? Colors.grey, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(SkillProgress skill) {
-    final rankColor = _getRankColor(skill.rank);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: InkWell(
-        onTap: () {
-          // Stat 객체 생성
-          final stat = Stat(
-            id: skill.skillId,
-            name: skill.skillName,
-            key: skill.skillId,
-            createdAt: DateTime.now(),
-          );
-          
-          // 랭크에 따른 시작/끝 레벨 계산
-          final rankLevels = _getRankLevels();
-          final currentRank = skill.rank;
-          final nextRank = _getNextChallengeRank(currentRank);
-          final levels = rankLevels[nextRank] ?? {'start': 1, 'end': 20};
-          
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MilestonesScreen(
-                skill: stat,
-                rank: nextRank,
-                startLevel: levels['start']!,
-                endLevel: levels['end']!,
-              ),
-            ),
-          ).then((_) => _loadData());
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      skill.skillName.withKoreanWordBreak,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: rankColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: rankColor.withOpacity(0.3)),
-                    ),
-                    child: Text(
-                      skill.rank,
-                      style: TextStyle(
-                        color: rankColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // 진행도 바
-              LinearProgressIndicator(
-                value: skill.progressPercentage,
-                backgroundColor: Colors.grey[300],
-                valueColor: AlwaysStoppedAnimation<Color>(rankColor),
-                minHeight: 8,
-              ),
-              
-              const SizedBox(height: 8),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${skill.completedCount}/${skill.totalCount}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  Text(
-                    '${(skill.progressPercentage * 100).toInt()}%',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              
-              // 목표 정보 (있는 경우)
-              if (skill.targetLevel != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.flag, color: Colors.blue, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '목표: ${skill.targetLevel}레벨',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                            if (skill.targetDate != null && skill.daysUntilTarget != null)
-                              Text(
-                                '${skill.daysUntilTarget}일 남음',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      LinearProgressIndicator(
-                        value: skill.targetProgressPercentage,
-                        backgroundColor: Colors.blue.withOpacity(0.2),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                        minHeight: 4,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              
-              // 스트릭 정보 (있는 경우)
-              if (skill.currentStreak > 0) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${skill.currentStreak}일 연속',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (skill.bestStreak > skill.currentStreak) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        '(최고: ${skill.bestStreak}일)',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOverallPerformanceCard() {
-    final totalCompleted = _performanceStats.fold<int>(0, (sum, stat) => sum + stat.totalCompleted);
-    final weeklyCompleted = _performanceStats.fold<int>(0, (sum, stat) => sum + stat.weeklyCompleted);
-    final monthlyCompleted = _performanceStats.fold<int>(0, (sum, stat) => sum + stat.monthlyCompleted);
-    
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.trending_up, color: Theme.of(context).primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  '전체 성과'.withKoreanWordBreak,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildPerformanceStat('총 달성', totalCompleted.toString(), Icons.check_circle),
-                _buildPerformanceStat('이번 주', weeklyCompleted.toString(), Icons.calendar_today),
-                _buildPerformanceStat('이번 달', monthlyCompleted.toString(), Icons.calendar_month),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPerformanceStat(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Theme.of(context).primaryColor, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPerformanceCard(StatPerformance performance) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  performance.statName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '총 ${performance.totalCompleted}회',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: _buildPerformanceMetric(
-                    '이번 주',
-                    performance.weeklyCompleted.toString(),
-                    performance.weeklyGrowth,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildPerformanceMetric(
-                    '이번 달',
-                    performance.monthlyCompleted.toString(),
-                    performance.monthlyGrowth,
-                  ),
-                ),
-              ],
-            ),
-            
-            if (performance.currentStreak > 0) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${performance.currentStreak}일 연속',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (performance.bestStreak > performance.currentStreak) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      '(최고: ${performance.bestStreak}일)',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPerformanceMetric(String label, String value, double growth) {
-    final isPositive = growth > 0;
-    final isNegative = growth < 0;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        if (growth != 0) ...[
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Icon(
-                isPositive ? Icons.trending_up : Icons.trending_down,
-                size: 12,
-                color: isPositive ? Colors.green : Colors.red,
-              ),
-              const SizedBox(width: 2),
-              Text(
-                '${growth.abs().toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isPositive ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildAchievementsSummaryCard() {
-    final unlockedCount = _achievements.length;
-    final totalAchievements = 10; // 기본 배지 개수
-    
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.emoji_events, color: Theme.of(context).primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  '성취 현황'.withKoreanWordBreak,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildAchievementStat('획득 배지', unlockedCount.toString(), Icons.emoji_events),
-                _buildAchievementStat('달성률', '${((unlockedCount / totalAchievements) * 100).toInt()}%', Icons.percent),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAchievementStat(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Theme.of(context).primaryColor, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAchievementCard(Achievement achievement) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              achievement.icon,
-              style: const TextStyle(fontSize: 32),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              achievement.name,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              achievement.description,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (achievement.unlockedAt != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                '${achievement.unlockedAt!.month}/${achievement.unlockedAt!.day}',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
+      );
+    }
   }
 
   Color _getRankColor(String rank) {
@@ -940,26 +300,250 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     };
   }
 
-  // 우선순위 순서 업데이트
-  Future<void> _updatePriorityOrder(SkillProgress skill, int newOrder) async {
-    try {
-      final user = _authService.currentUser;
-      if (user == null) return;
-
-      await _priorityService.setStatPriority(
-        userId: user.id,
-        statId: skill.skillId,
-        priorityOrder: newOrder,
+  // 스탯 카드 클릭 시 해당 스탯의 현재 도전 중인 등급 마일스톤으로 이동
+  void _navigateToSkillMilestones(SkillProgress skillProgress) {
+    // 현재 등급에 따라 다음 도전 등급 결정
+    final currentRank = skillProgress.rank;
+    final challengeRank = _getNextChallengeRank(currentRank);
+    final rankLevels = _getRankLevels();
+    final levels = rankLevels[challengeRank];
+    
+    if (levels != null) {
+      // Skill 객체 생성 (필요한 정보만 포함)
+      final skill = Stat(
+        id: skillProgress.skillId,
+        name: skillProgress.skillName,
+        key: skillProgress.skillName.toLowerCase().replaceAll(' ', '_'),
+        createdAt: DateTime.now(),
       );
-
-      _loadData();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('우선순위 업데이트 실패: ${e.toString()}'),
-          backgroundColor: Colors.red,
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MilestonesScreen(
+            skill: skill,
+            rank: challengeRank,
+            startLevel: levels['start']!,
+            endLevel: levels['end']!,
+            onMilestoneChanged: _loadData, // 마일스톤 변경 시 데이터 새로고침
+          ),
         ),
       );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 스탯 섹션
+            _buildStatsSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+
+  Widget _buildStatsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_sortedSkills.isEmpty)
+          _buildEmptyState('마일스톤이 있는 스탯이 없습니다.\n스탯을 선택해서 시작해보세요!')
+        else
+          _buildStatsList(),
+      ],
+    );
+  }
+
+  Widget _buildStatsList() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _sortedSkills.length,
+        buildDefaultDragHandles: false,
+        onReorder: (oldIndex, newIndex) {
+          // ReorderableListView의 인덱스 조정
+          if (oldIndex < newIndex) {
+            newIndex -= 1;
+          }
+          
+          // 실제 원하는 위치 계산
+          int targetIndex = newIndex;
+          if (oldIndex < newIndex) {
+            // 아래로 드래그할 때는 그대로
+            targetIndex = newIndex;
+          } else {
+            // 위로 드래그할 때는 그대로
+            targetIndex = newIndex;
+          }
+          
+          final skill = _sortedSkills[oldIndex];
+          _updatePriorityOrder(skill.skillId, targetIndex);
+        },
+        itemBuilder: (context, index) {
+          final skill = _sortedSkills[index];
+          
+          return ReorderableDragStartListener(
+            key: ValueKey(skill.skillId),
+            index: index,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _navigateToSkillMilestones(skill),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // 랭크 배지
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getRankColor(skill.rank),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _getRankColor(skill.rank).withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            skill.rank,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        
+                        // 스탯 이름
+                        Expanded(
+                          child: Text(
+                            skill.skillName.withKoreanWordBreak,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        
+                        // 진행도
+                        Text(
+                          '${_getCurrentRankProgressCount(skill)}/${_getNextRankTarget(skill)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 48,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _getNextRankTarget(SkillProgress skill) {
+    // 각 등급마다 20개씩 마일스톤을 클리어하면 됨
+    return 20;
+  }
+
+  int _getCurrentRankProgressCount(SkillProgress skill) {
+    final completedCount = skill.completedCount;
+    
+    // 각 등급마다 20개씩이므로, 현재 등급에서 클리어한 수를 계산
+    switch (skill.rank) {
+      case 'F':
+        return completedCount; // 0-19
+      case 'E':
+        return completedCount - 20; // 20-39에서 20을 빼면 0-19
+      case 'D':
+        return completedCount - 40; // 40-59에서 40을 빼면 0-19
+      case 'C':
+        return completedCount - 60; // 60-79에서 60을 빼면 0-19
+      case 'B':
+        return completedCount - 80; // 80-99에서 80을 빼면 0-19
+      case 'A':
+        return completedCount - 100; // 100+에서 100을 빼면 0+
+      default:
+        return completedCount;
     }
   }
 }
