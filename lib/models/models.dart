@@ -287,9 +287,8 @@ class Quest {
   final Map<String, dynamic>? repeatConfig;
   final int estimatedMinutes;
   final int actualMinutes;
-  final DateTime? startedAt;
-  final DateTime? pausedAt;
-  final List<TimeEntry> timeEntries;
+
+
   final String? templateId;
   final Map<String, dynamic>? customFields;
 
@@ -349,15 +348,8 @@ class Quest {
           : null,
       estimatedMinutes: json['estimated_minutes'] ?? 0,
       actualMinutes: json['actual_minutes'] ?? 0,
-      startedAt: json['started_at'] != null 
-          ? DateTime.parse(json['started_at']) 
-          : null,
-      pausedAt: json['paused_at'] != null 
-          ? DateTime.parse(json['paused_at']) 
-          : null,
-      timeEntries: (json['time_entries'] as List<dynamic>? ?? [])
-          .map((entry) => TimeEntry.fromJson(entry))
-          .toList(),
+
+
       templateId: json['template_id'],
       customFields: json['custom_fields'] != null 
           ? Map<String, dynamic>.from(json['custom_fields'])
@@ -386,9 +378,8 @@ class Quest {
       'repeat_config': repeatConfig,
       'estimated_minutes': estimatedMinutes,
       'actual_minutes': actualMinutes,
-      'started_at': startedAt?.toIso8601String(),
-      'paused_at': pausedAt?.toIso8601String(),
-      'time_entries': timeEntries.map((entry) => entry.toJson()).toList(),
+
+
       'template_id': templateId,
       'custom_fields': customFields,
     };
@@ -494,17 +485,10 @@ class Quest {
     return completedCount / subTasks.length;
   }
 
-  bool get isInProgress => startedAt != null && pausedAt == null && !isCompleted;
+  bool get isInProgress => false; // 시간 추적 기능이 제거됨
 
   String get timeSpentText {
-    final totalMinutes = actualMinutes;
-    if (totalMinutes < 60) {
-      return '${totalMinutes}분';
-    } else {
-      final hours = totalMinutes ~/ 60;
-      final minutes = totalMinutes % 60;
-      return minutes > 0 ? '${hours}시간 ${minutes}분' : '${hours}시간';
-    }
+    return '시간 추적 기능이 제거됨';
   }
 
   String get estimatedTimeText {
@@ -559,108 +543,6 @@ class SubTask {
 }
 
 // 시간 추적 엔트리 모델
-class TimeEntry {
-  final String id;
-  final DateTime startTime;
-  final DateTime? endTime;
-  final String? note;
 
-  TimeEntry({
-    required this.id,
-    required this.startTime,
-    this.endTime,
-    this.note,
-  });
 
-  factory TimeEntry.fromJson(Map<String, dynamic> json) {
-    return TimeEntry(
-      id: json['id'],
-      startTime: DateTime.parse(json['start_time']),
-      endTime: json['end_time'] != null 
-          ? DateTime.parse(json['end_time']) 
-          : null,
-      note: json['note'],
-    );
-  }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'start_time': startTime.toIso8601String(),
-      'end_time': endTime?.toIso8601String(),
-      'note': note,
-    };
-  }
-
-  int get durationMinutes {
-    final end = endTime ?? DateTime.now();
-    return end.difference(startTime).inMinutes;
-  }
-}
-
-// 퀘스트 템플릿 모델
-class QuestTemplate {
-  final String id;
-  final String userId;
-  final String title;
-  final String? description;
-  final String? category;
-  final List<String> tags;
-  final List<String> subTaskTitles;
-  final String priority;
-  final int estimatedMinutes;
-  final String? repeatPattern;
-  final Map<String, dynamic>? repeatConfig;
-  final DateTime createdAt;
-
-  QuestTemplate({
-    required this.id,
-    required this.userId,
-    required this.title,
-    this.description,
-    this.category,
-    this.tags = const [],
-    this.subTaskTitles = const [],
-    required this.priority,
-    this.estimatedMinutes = 0,
-    this.repeatPattern,
-    this.repeatConfig,
-    required this.createdAt,
-  });
-
-  factory QuestTemplate.fromJson(Map<String, dynamic> json) {
-    return QuestTemplate(
-      id: json['id'],
-      userId: json['user_id'],
-      title: json['title'],
-      description: json['description'],
-      category: json['category'],
-      tags: List<String>.from(json['tags'] ?? []),
-      subTaskTitles: List<String>.from(json['sub_task_titles'] ?? []),
-      priority: json['priority'] ?? 'normal',
-      estimatedMinutes: json['estimated_minutes'] ?? 0,
-      repeatPattern: json['repeat_pattern'],
-      repeatConfig: json['repeat_config'] != null 
-          ? Map<String, dynamic>.from(json['repeat_config'])
-          : null,
-      createdAt: DateTime.parse(json['created_at']),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user_id': userId,
-      'title': title,
-      'description': description,
-      'category': category,
-      'tags': tags,
-      'sub_task_titles': subTaskTitles,
-      'priority': priority,
-      'estimated_minutes': estimatedMinutes,
-      'repeat_pattern': repeatPattern,
-      'repeat_config': repeatConfig,
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
-}

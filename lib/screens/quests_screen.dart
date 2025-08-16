@@ -19,7 +19,7 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   
   List<Quest> _quests = [];
   List<Stat> _stats = [];
-  List<QuestTemplate> _templates = [];
+
   bool _isLoading = true;
   bool _showCompleted = false;
   
@@ -62,13 +62,9 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
       final quests = await _questService.getUserQuests(userId);
       final stats = await _statService.getAllStats();
       
-      // 템플릿 기능은 현재 비활성화됨
-      List<QuestTemplate> templates = [];
-
       setState(() {
         _quests = quests;
         _stats = stats;
-        _templates = templates;
         _isLoading = false;
       });
     } catch (e) {
@@ -1869,36 +1865,13 @@ class _QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMix
   }
 
   Future<void> _toggleQuestProgress(Quest quest) async {
-    try {
-      if (quest.isInProgress) {
-        // 진행 중인 경우 일시정지
-        await _questService.pauseTimeTracking(quest.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('퀘스트를 일시정지했습니다'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      } else {
-        // 진행 중이 아닌 경우 시작
-        await _questService.startTimeTracking(quest.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('퀘스트를 시작했습니다'),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      }
-      
-      _loadData();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('퀘스트 진행 상태 변경 실패: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    // 시간 추적 기능이 제거되어 비활성화됨
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('시간 추적 기능이 제거되었습니다'),
+        backgroundColor: Colors.grey,
+      ),
+    );
   }
 
   Future<void> _duplicateQuest(Quest quest) async {

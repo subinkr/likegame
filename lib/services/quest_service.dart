@@ -191,130 +191,11 @@ class QuestService {
     }
   }
 
-  // 스탯과 연결된 퀘스트 가져오기
-  Future<List<Quest>> getQuestsByStat(String userId, String statId) async {
-    try {
-      final response = await _supabase
-          .from('quests')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('stat_id', statId)
-          .order('priority', ascending: false)
-          .order('due_date', ascending: true);
 
-      return (response as List)
-          .map((quest) => Quest.fromJson(quest))
-          .toList();
-    } catch (e) {
-      rethrow;
-    }
-  }
 
-  // 퀘스트 통계 가져오기
-  Future<Map<String, int>> getQuestStats(String userId) async {
-    try {
-      final allQuests = await getUserQuests(userId);
-      
-      return {
-        'total': allQuests.length,
-        'completed': allQuests.where((quest) => quest.isCompleted).length,
-        'incomplete': allQuests.where((quest) => !quest.isCompleted).length,
-        'overdue': allQuests.where((quest) => quest.isOverdue).length,
-        'today': allQuests.where((quest) => 
-            quest.dueDate != null && 
-            !quest.isCompleted &&
-            quest.dueDate!.year == DateTime.now().year &&
-            quest.dueDate!.month == DateTime.now().month &&
-            quest.dueDate!.day == DateTime.now().day
-        ).length,
-      };
-    } catch (e) {
-      rethrow;
-    }
-  }
 
-  // 시간 추적 시작
-  Future<Quest> startTimeTracking(String questId) async {
-    try {
-      final now = DateTime.now();
-      final timeEntry = TimeEntry(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        startTime: now,
-      );
 
-      // 현재 퀘스트 가져오기
-      final currentQuest = await _supabase
-          .from('quests')
-          .select('*')
-          .eq('id', questId)
-          .single();
-      
-      final quest = Quest.fromJson(currentQuest);
-      final timeEntries = List<TimeEntry>.from(quest.timeEntries);
-      timeEntries.add(timeEntry);
 
-      final response = await _supabase
-          .from('quests')
-          .update({
-            'started_at': now.toIso8601String(),
-            'paused_at': null,
-            'time_entries': timeEntries.map((entry) => entry.toJson()).toList(),
-            'updated_at': now.toIso8601String(),
-          })
-          .eq('id', questId)
-          .select()
-          .single();
-
-      return Quest.fromJson(response);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // 시간 추적 일시정지
-  Future<Quest> pauseTimeTracking(String questId) async {
-    try {
-      final now = DateTime.now();
-      
-      // 현재 퀘스트 가져오기
-      final currentQuest = await _supabase
-          .from('quests')
-          .select('*')
-          .eq('id', questId)
-          .single();
-      
-      final quest = Quest.fromJson(currentQuest);
-      final timeEntries = List<TimeEntry>.from(quest.timeEntries);
-      
-      // 마지막 시간 엔트리 업데이트
-      if (timeEntries.isNotEmpty) {
-        final lastEntry = timeEntries.last;
-        final updatedEntry = TimeEntry(
-          id: lastEntry.id,
-          startTime: lastEntry.startTime,
-          endTime: now,
-          note: lastEntry.note,
-        );
-        timeEntries[timeEntries.length - 1] = updatedEntry;
-      }
-
-      final response = await _supabase
-          .from('quests')
-          .update({
-            'paused_at': now.toIso8601String(),
-            'time_entries': timeEntries.map((entry) => entry.toJson()).toList(),
-            'actual_minutes': quest.actualMinutes + (now.difference(quest.startedAt!).inMinutes),
-            'updated_at': now.toIso8601String(),
-          })
-          .eq('id', questId)
-          .select()
-          .single();
-
-      return Quest.fromJson(response);
-    } catch (e) {
-      rethrow;
-    }
-  }
 
   // 서브태스크 추가
   Future<Quest> addSubTask(String questId, String title) async {
@@ -392,55 +273,7 @@ class QuestService {
     }
   }
 
-  // 퀘스트 템플릿 관련 메서드들 (현재 비활성화됨)
-  Future<List<QuestTemplate>> getUserTemplates(String userId) async {
-    // 템플릿 기능이 제거되어 빈 리스트 반환
-    return [];
-  }
 
-  Future<QuestTemplate> addTemplate({
-    required String userId,
-    required String title,
-    String? description,
-    String? category,
-    List<String> tags = const [],
-    List<String> subTaskTitles = const [],
-    String priority = 'normal',
-    int estimatedMinutes = 0,
-    String? repeatPattern,
-    Map<String, dynamic>? repeatConfig,
-  }) async {
-    // 템플릿 기능이 제거되어 예외 발생
-    throw Exception('퀘스트 템플릿 기능이 제거되었습니다.');
-  }
-
-  // 템플릿에서 퀘스트 생성
-  Future<Quest> createQuestFromTemplate(String userId, QuestTemplate template) async {
-    try {
-      final subTasks = template.subTaskTitles.map((title) => SubTask(
-        id: DateTime.now().millisecondsSinceEpoch.toString() + title.hashCode.toString(),
-        title: title,
-        isCompleted: false,
-        createdAt: DateTime.now(),
-      )).toList();
-
-      return await addQuest(
-        userId: userId,
-        title: template.title,
-        description: template.description,
-        category: template.category,
-        tags: template.tags,
-        subTasks: subTasks,
-        priority: template.priority,
-        estimatedMinutes: template.estimatedMinutes,
-        repeatPattern: template.repeatPattern,
-        repeatConfig: template.repeatConfig,
-        templateId: template.id,
-      );
-    } catch (e) {
-      rethrow;
-    }
-  }
 
   // 퀘스트 복제
   Future<Quest> duplicateQuest(String userId, Quest originalQuest) async {
