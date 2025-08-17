@@ -128,22 +128,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           
           final userProvider = context.read<UserProvider>();
           final profile = userProvider.userProfile;
-          final stats = userProvider.userStats;
           
           String shareText = '🎮 LikeGame 프로필\n\n';
           shareText += '닉네임: ${profile?.nickname ?? '익명'}\n';
           shareText += '이메일: ${profile?.email ?? ''}\n\n';
           
-          if (stats != null) {
-            shareText += '📊 스탯\n';
-            shareText += '근력: ${stats.strength}\n';
-            shareText += '민첩: ${stats.agility}\n';
-            shareText += '지구: ${stats.stamina}\n\n';
-          }
-          
+          // 스탯 정보는 로컬 변수에서 가져오기
           shareText += '📈 성과\n';
-          shareText += '스킬: ${userProvider.userSkills?.length ?? 0}개\n';
-          shareText += '완료한 퀘스트: ${userProvider.completedQuestsCount}개\n\n';
+          shareText += '스킬: ${_skills.length}개\n';
+          shareText += '완료한 퀘스트: $_completedQuests개\n\n';
           shareText += 'LikeGame에서 나의 성장을 확인해보세요! 🚀';
           
           await ShareService.shareText(shareText, title: 'LikeGame 프로필');

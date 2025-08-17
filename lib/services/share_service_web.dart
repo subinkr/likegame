@@ -1,6 +1,6 @@
 import 'dart:typed_data';
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
-import 'dart:convert';
 
 class ShareService {
   static void shareAsDownload(Uint8List bytes, String filename) {
@@ -9,8 +9,8 @@ class ShareService {
     
     // 다운로드 링크 생성
     final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', filename)
-      ..click();
+      ..setAttribute('download', filename);
+    anchor.click();
     
     html.Url.revokeObjectUrl(url);
   }
@@ -49,22 +49,6 @@ class ShareService {
     html.document.body!.append(textArea);
     textArea.select();
     html.document.execCommand('copy');
-    html.document.body!.removeChild(textArea);
-  }
-
-  // 웹에서 이미지 공유 (Canvas API 사용)
-  static Future<void> shareImageAsDownload(String imageDataUrl, String filename) async {
-    // Data URL을 Blob으로 변환
-    final response = await html.HttpRequest.request(imageDataUrl, responseType: 'blob');
-    final blob = response.response as html.Blob;
-    
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    
-    // 다운로드 링크 생성
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', filename)
-      ..click();
-    
-    html.Url.revokeObjectUrl(url);
+    textArea.remove();
   }
 }

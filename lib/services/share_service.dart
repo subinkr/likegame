@@ -35,13 +35,5 @@ class ShareService {
     }
   }
 
-  // 웹에서 이미지 공유 (Data URL 사용)
-  static Future<void> shareImageAsDownload(String imageDataUrl, String filename) async {
-    if (kIsWeb) {
-      await platform_share.ShareService.shareImageAsDownload(imageDataUrl, filename);
-    } else {
-      // 모바일에서는 지원하지 않음
-      throw UnsupportedError('shareImageAsDownload is not supported on mobile');
-    }
-  }
+
 }
