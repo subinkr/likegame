@@ -22,11 +22,43 @@ class QuestDetailDialog extends StatefulWidget {
 class _QuestDetailDialogState extends State<QuestDetailDialog> {
   late Quest dialogQuest;
   bool isLoading = false;
+  
+  // 편집을 위한 컨트롤러들
+  late TextEditingController titleController;
+  late TextEditingController descriptionController;
+  late TextEditingController subTaskController;
+  
+  // 편집 가능한 필드들
+  late String selectedPriority;
+  late String selectedDifficulty;
+  DateTime? selectedDueDate;
+  List<String> subTasks = [];
 
   @override
   void initState() {
     super.initState();
     dialogQuest = widget.quest;
+    
+    // 컨트롤러 초기화
+    titleController = TextEditingController(text: dialogQuest.title);
+    descriptionController = TextEditingController(text: dialogQuest.description ?? '');
+    subTaskController = TextEditingController();
+    
+    // 필드 초기화
+    selectedPriority = dialogQuest.priority;
+    selectedDifficulty = dialogQuest.difficulty;
+    selectedDueDate = dialogQuest.dueDate;
+    
+    // 서브태스크 초기화
+    subTasks = dialogQuest.subTasks.map((task) => task.title).toList();
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    descriptionController.dispose();
+    subTaskController.dispose();
+    super.dispose();
   }
 
   // 서브태스크 토글 함수
@@ -81,42 +113,11 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
 
   // 서브태스크 추가 함수
   Future<void> addSubTask() async {
-    final TextEditingController controller = TextEditingController();
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('서브태스크 추가'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: '서브태스크 제목',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                Navigator.of(context).pop(controller.text.trim());
-              }
-            },
-            child: const Text('추가'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && result.isNotEmpty) {
+    if (subTaskController.text.trim().isNotEmpty) {
       // 1. 즉시 UI 업데이트 (낙관적 업데이트)
       final newSubTask = SubTask(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: result,
+        title: subTaskController.text.trim(),
         isCompleted: false,
         completedAt: null,
         createdAt: DateTime.now(),
@@ -128,13 +129,15 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
 
       setState(() {
         dialogQuest = updatedQuest;
+        subTasks.add(subTaskController.text.trim());
+        subTaskController.clear();
       });
 
       // 2. 메인 화면 데이터도 즉시 업데이트
       widget.onQuestUpdated(updatedQuest);
 
       // 3. 백그라운드에서 서버 업데이트
-      widget.questService.addSubTask(dialogQuest.id, result).then((serverUpdatedQuest) {
+      widget.questService.addSubTask(dialogQuest.id, newSubTask.title).then((serverUpdatedQuest) {
         // 4. 서버 응답으로 최신 데이터로 업데이트
         setState(() {
           dialogQuest = serverUpdatedQuest;
@@ -144,6 +147,7 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
         // 5. 실패 시에만 원래 상태로 되돌리기
         setState(() {
           dialogQuest = widget.quest;
+          subTasks.removeLast();
         });
         widget.onQuestUpdated(widget.quest);
 
@@ -192,6 +196,7 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
 
       setState(() {
         dialogQuest = updatedQuest;
+        subTasks.removeWhere((title) => title == subTask.title);
       });
 
       // 2. 메인 화면 데이터도 즉시 업데이트
@@ -208,6 +213,7 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
         // 5. 실패 시에만 원래 상태로 되돌리기
         setState(() {
           dialogQuest = widget.quest;
+          subTasks.add(subTask.title);
         });
         widget.onQuestUpdated(widget.quest);
 
@@ -280,6 +286,10 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
 
       setState(() {
         dialogQuest = updatedQuest;
+        final index = subTasks.indexOf(subTask.title);
+        if (index != -1) {
+          subTasks[index] = result;
+        }
       });
 
       // 2. 메인 화면 데이터도 즉시 업데이트
@@ -296,6 +306,10 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
         // 5. 실패 시에만 원래 상태로 되돌리기
         setState(() {
           dialogQuest = widget.quest;
+          final index = subTasks.indexOf(result);
+          if (index != -1) {
+            subTasks[index] = subTask.title;
+          }
         });
         widget.onQuestUpdated(widget.quest);
 
@@ -381,15 +395,12 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
     widget.onQuestUpdated(updatedQuest);
 
     // 3. 백그라운드에서 서버 업데이트
-    widget.questService.toggleQuestProgress(dialogQuest.id).then((_) {
+    widget.questService.toggleQuestProgress(dialogQuest.id).then((serverUpdatedQuest) {
       // 4. 서버 응답으로 최신 데이터로 업데이트
-      widget.questService.getUserQuests(dialogQuest.userId).then((updatedQuests) {
-        final newQuest = updatedQuests.firstWhere((q) => q.id == dialogQuest.id);
-        setState(() {
-          dialogQuest = newQuest;
-        });
-        widget.onQuestUpdated(newQuest);
+      setState(() {
+        dialogQuest = serverUpdatedQuest;
       });
+      widget.onQuestUpdated(serverUpdatedQuest);
     }).catchError((e) {
       // 5. 실패 시에만 원래 상태로 되돌리기
       setState(() {
@@ -422,15 +433,12 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
     widget.onQuestUpdated(updatedQuest);
 
     // 3. 백그라운드에서 서버 업데이트
-    widget.questService.toggleQuest(dialogQuest.id, !dialogQuest.isCompleted).then((_) {
+    widget.questService.toggleQuest(dialogQuest.id, !dialogQuest.isCompleted).then((serverUpdatedQuest) {
       // 4. 서버 응답으로 최신 데이터로 업데이트
-      widget.questService.getUserQuests(dialogQuest.userId).then((updatedQuests) {
-        final newQuest = updatedQuests.firstWhere((q) => q.id == dialogQuest.id);
-        setState(() {
-          dialogQuest = newQuest;
-        });
-        widget.onQuestUpdated(newQuest);
+      setState(() {
+        dialogQuest = serverUpdatedQuest;
       });
+      widget.onQuestUpdated(serverUpdatedQuest);
     }).catchError((e) {
       // 5. 실패 시에만 원래 상태로 되돌리기
       setState(() {
@@ -447,54 +455,65 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
     });
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _getPriorityText(String priority) {
-    switch (priority) {
-      case 'low':
-        return '낮음';
-      case 'normal':
-        return '보통';
-      case 'high':
-        return '높음';
-      case 'highest':
-        return '긴급';
-      default:
-        return '보통';
+  // 퀘스트 정보 업데이트 함수
+  Future<void> updateQuestInfo() async {
+    if (titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('제목을 입력해주세요'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
-  }
 
-  String _getDifficultyText(String difficulty) {
-    return difficulty;
+    try {
+      final updatedQuest = dialogQuest.copyWith(
+        title: titleController.text.trim(),
+        description: descriptionController.text.trim().isEmpty 
+            ? null 
+            : descriptionController.text.trim(),
+        dueDate: selectedDueDate,
+        priority: selectedPriority,
+        difficulty: selectedDifficulty,
+      );
+
+      setState(() {
+        dialogQuest = updatedQuest;
+      });
+
+      // 메인 화면 데이터도 즉시 업데이트
+      widget.onQuestUpdated(updatedQuest);
+
+      // 서버 업데이트
+      await widget.questService.updateQuest(
+        questId: dialogQuest.id,
+        title: titleController.text.trim(),
+        description: descriptionController.text.trim().isEmpty 
+            ? null 
+            : descriptionController.text.trim(),
+        dueDate: selectedDueDate,
+        priority: selectedPriority,
+        difficulty: selectedDifficulty,
+      );
+
+      Navigator.of(context).pop();
+      widget.onQuestUpdated(updatedQuest);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('퀘스트가 수정되었습니다'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('퀘스트 수정 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -507,79 +526,414 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // 헤더
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Text(
-                    '퀘스트 상세'.withKoreanWordBreak,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                Text(
+                  '퀘스트 수정'.withKoreanWordBreak,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () {
-                    Navigator.of(context).pop(dialogQuest);
-                    widget.onQuestUpdated(dialogQuest);
-                  },
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-
-            // 내용
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 제목
-                    Text(
-                      dialogQuest.title.withKoreanWordBreak,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: '제목',
+                        border: OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // 설명
-                    if (dialogQuest.description != null && dialogQuest.description!.isNotEmpty) ...[
-                      const Text(
-                        '설명',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: '설명 (선택사항)',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      title: const Text('마감일'),
+                      subtitle: Text(
+                        selectedDueDate != null 
+                            ? '${selectedDueDate!.year}-${selectedDueDate!.month.toString().padLeft(2, '0')}-${selectedDueDate!.day.toString().padLeft(2, '0')}'
+                            : '선택하세요',
+                      ),
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDueDate ?? DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            selectedDueDate = date;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: '우선순위',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: selectedPriority,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'low',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('낮음'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'normal',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('보통'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'high',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Colors.orange,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('높음'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'highest',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('긴급'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedPriority = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: '난이도',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: selectedDifficulty,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'F',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? const Color(0xFF9E9E9E) 
+                                      : Colors.grey,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('F'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'E',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? const Color(0xFF8D6E63) 
+                                      : Colors.brown,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('E'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'D',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? const Color(0xFFFF9800) 
+                                      : Colors.orange,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('D'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'C',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? const Color(0xFFFFC107) 
+                                      : Colors.yellow[700]!,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('C'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'B',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? const Color(0xFF03A9F4) 
+                                      : Colors.lightBlue,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('B'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'A',
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? const Color(0xFF9C27B0) 
+                                      : Colors.purple,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('A'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedDifficulty = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // 서브태스크 섹션
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          '서브태스크 (선택사항)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (dialogQuest.subTasks.isNotEmpty) ...[
+                          IconButton(
+                            onPressed: isLoading ? null : () => toggleAllSubTasks(true),
+                            icon: const Icon(Icons.check_circle_outline, size: 20),
+                            tooltip: '모두 완료',
+                          ),
+                          IconButton(
+                            onPressed: isLoading ? null : () => toggleAllSubTasks(false),
+                            icon: const Icon(Icons.radio_button_unchecked, size: 20),
+                            tooltip: '모두 미완료',
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // 서브태스크 입력 필드
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: subTaskController,
+                            decoration: const InputDecoration(
+                              labelText: '서브태스크 제목',
+                              border: OutlineInputBorder(),
+                              hintText: '서브태스크를 입력하세요',
+                            ),
+                            onSubmitted: (value) {
+                              if (value.trim().isNotEmpty) {
+                                addSubTask();
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (subTaskController.text.trim().isNotEmpty) {
+                              addSubTask();
+                            }
+                          },
+                          child: const Text('추가'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // 서브태스크 리스트
+                    if (dialogQuest.subTasks.isNotEmpty) ...[
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: dialogQuest.subTasks.length,
+                          itemBuilder: (context, index) {
+                            final subTask = dialogQuest.subTasks[index];
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              leading: InkWell(
+                                onTap: isLoading ? null : () => toggleSubTask(subTask),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(
+                                    subTask.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                                    color: subTask.isCompleted ? Colors.green : Colors.grey,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                subTask.title.withKoreanWordBreak,
+                                style: TextStyle(
+                                  decoration: subTask.isCompleted ? TextDecoration.lineThrough : null,
+                                  color: subTask.isCompleted ? Colors.grey : null,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // 수정 버튼
+                                  IconButton(
+                                    onPressed: isLoading ? null : () => editSubTask(subTask),
+                                    icon: const Icon(Icons.edit, size: 18),
+                                    tooltip: '수정',
+                                  ),
+                                  // 삭제 버튼
+                                  IconButton(
+                                    onPressed: isLoading ? null : () => deleteSubTask(subTask),
+                                    icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                                    tooltip: '삭제',
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        dialogQuest.description!.withKoreanWordBreak,
-                        style: const TextStyle(fontSize: 14),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            '서브태스크가 없습니다.\n위 입력창에서 서브태스크를 추가해보세요!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 16),
                     ],
-
-                    // 기본 정보
-                    const Text(
-                      '기본 정보',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildInfoRow('상태', dialogQuest.isCompleted ? '완료' : (dialogQuest.isInProgress ? '작업중' : '대기중')),
-                    _buildInfoRow('우선순위', _getPriorityText(dialogQuest.priority)),
-                    _buildInfoRow('난이도', _getDifficultyText(dialogQuest.difficulty)),
-                    if (dialogQuest.category != null) _buildInfoRow('카테고리', dialogQuest.category!),
-                    if (dialogQuest.dueDate != null) _buildInfoRow('마감일', _formatDate(dialogQuest.dueDate!)),
-                    _buildInfoRow('생성일', _formatDate(dialogQuest.createdAt)),
-                    if (dialogQuest.completedAt != null) _buildInfoRow('완료일', _formatDate(dialogQuest.completedAt!)),
 
                     // 퀘스트 액션 버튼들
                     const SizedBox(height: 16),
@@ -626,195 +980,27 @@ class _QuestDetailDialogState extends State<QuestDetailDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-
-                    // 서브태스크 섹션
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          '서브태스크',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            // 모든 서브태스크 완료 버튼
-                            if (dialogQuest.subTasks.isNotEmpty) ...[
-                              IconButton(
-                                onPressed: isLoading ? null : () => toggleAllSubTasks(true),
-                                icon: const Icon(Icons.check_circle_outline, size: 20),
-                                tooltip: '모두 완료',
-                              ),
-                              // 모든 서브태스크 미완료 버튼
-                              IconButton(
-                                onPressed: isLoading ? null : () => toggleAllSubTasks(false),
-                                icon: const Icon(Icons.radio_button_unchecked, size: 20),
-                                tooltip: '모두 미완료',
-                              ),
-                            ],
-                            // 서브태스크 추가 버튼
-                            IconButton(
-                              onPressed: isLoading ? null : addSubTask,
-                              icon: const Icon(Icons.add, size: 20),
-                              tooltip: '서브태스크 추가',
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 서브태스크 리스트
-                    if (dialogQuest.subTasks.isNotEmpty) ...[
-                      ...dialogQuest.subTasks.map((subTask) => Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: subTask.isCompleted 
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: subTask.isCompleted 
-                                ? Colors.green.withOpacity(0.3)
-                                : Colors.grey.withOpacity(0.3),
-                          ),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          leading: InkWell(
-                            onTap: isLoading ? null : () => toggleSubTask(subTask),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                subTask.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                                color: subTask.isCompleted ? Colors.green : Colors.grey,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            subTask.title.withKoreanWordBreak,
-                            style: TextStyle(
-                              decoration: subTask.isCompleted ? TextDecoration.lineThrough : null,
-                              color: subTask.isCompleted ? Colors.grey : null,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: subTask.completedAt != null ? Text(
-                            '완료: ${_formatDate(subTask.completedAt!)}',
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          ) : null,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // 수정 버튼
-                              IconButton(
-                                onPressed: isLoading ? null : () => editSubTask(subTask),
-                                icon: const Icon(Icons.edit, size: 18),
-                                tooltip: '수정',
-                              ),
-                              // 삭제 버튼
-                              IconButton(
-                                onPressed: isLoading ? null : () => deleteSubTask(subTask),
-                                icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                                tooltip: '삭제',
-                              ),
-                            ],
-                          ),
-                        ),
-                      )).toList(),
-
-                      // 서브태스크 통계
-                      Container(
-                        margin: const EdgeInsets.only(top: 16),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '진행률: ${dialogQuest.subTasks.where((task) => task.isCompleted).length}/${dialogQuest.subTasks.length}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              '${((dialogQuest.subTasks.where((task) => task.isCompleted).length / dialogQuest.subTasks.length) * 100).toInt()}%',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            '서브태스크가 없습니다.\n+ 버튼을 눌러 서브태스크를 추가해보세요!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-
-                    // 반복 설정
-                    if (dialogQuest.repeatPattern != null) ...[
-                      const Text(
-                        '반복 설정',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInfoRow('반복 패턴', dialogQuest.repeatPattern!),
-                      if (dialogQuest.repeatConfig != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          '반복 설정: ${dialogQuest.repeatConfig.toString()}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                    ],
-
-                    // 시작 시간 정보
-                    if (dialogQuest.startedAt != null) ...[
-                      const Text(
-                        '시간 정보',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInfoRow('시작 시간', _formatDate(dialogQuest.startedAt!)),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // 로딩 인디케이터
-                    if (isLoading) ...[
-                      const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('취소'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: updateQuestInfo,
+                    child: const Text('수정'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

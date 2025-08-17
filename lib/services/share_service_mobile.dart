@@ -22,4 +22,12 @@ class ShareService {
     // 모바일에서는 shareAsFile과 동일하게 동작
     await shareAsFile(bytes, filename);
   }
+
+  // 텍스트 공유
+  static Future<void> shareText(String text, {String? title}) async {
+    await Share.share(
+      text,
+      subject: title ?? 'LikeGame',
+    );
+  }
 }

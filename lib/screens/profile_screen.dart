@@ -80,35 +80,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-      // 위젯을 이미지로 변환
-      final RenderRepaintBoundary boundary = _profileImageKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
-      if (byteData == null) {
-        if (mounted) {
-          Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('이미지 생성에 실패했습니다'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
+      if (kIsWeb) {
+        // 웹 환경에서는 Canvas를 사용한 이미지 생성
+        try {
+          // 위젯을 이미지로 변환
+          final RenderRepaintBoundary boundary = _profileImageKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+          final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+          
+          if (byteData == null) {
+            if (mounted) {
+              Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('이미지 생성에 실패했습니다'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
 
-      // 로딩 다이얼로그 닫기
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+          // 로딩 다이얼로그 닫기
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
 
-      final bytes = byteData.buffer.asUint8List();
-      final filename = 'likegame_profile_${DateTime.now().millisecondsSinceEpoch}.png';
-      
-      try {
-        if (kIsWeb) {
-          // 웹 환경에서는 다운로드
+          final bytes = byteData.buffer.asUint8List();
+          final filename = 'likegame_profile_${DateTime.now().millisecondsSinceEpoch}.png';
+          
+          // 웹에서 다운로드
           ShareService.shareAsDownload(bytes, filename);
           
           if (mounted) {
@@ -119,18 +120,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             );
           }
-        } else {
-          // 모바일 환경에서는 공유
-          await ShareService.shareAsFile(bytes, filename);
+        } catch (e) {
+          // toImage가 실패하면 텍스트 공유로 대체
+          if (mounted) {
+            Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+          }
+          
+          final userProvider = context.read<UserProvider>();
+          final profile = userProvider.userProfile;
+          final stats = userProvider.userStats;
+          
+          String shareText = '🎮 LikeGame 프로필\n\n';
+          shareText += '닉네임: ${profile?.nickname ?? '익명'}\n';
+          shareText += '이메일: ${profile?.email ?? ''}\n\n';
+          
+          if (stats != null) {
+            shareText += '📊 스탯\n';
+            shareText += '근력: ${stats.strength}\n';
+            shareText += '민첩: ${stats.agility}\n';
+            shareText += '지구: ${stats.stamina}\n\n';
+          }
+          
+          shareText += '📈 성과\n';
+          shareText += '스킬: ${userProvider.userSkills?.length ?? 0}개\n';
+          shareText += '완료한 퀘스트: ${userProvider.completedQuestsCount}개\n\n';
+          shareText += 'LikeGame에서 나의 성장을 확인해보세요! 🚀';
+          
+          await ShareService.shareText(shareText, title: 'LikeGame 프로필');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('프로필이 텍스트로 공유되었습니다'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         }
-      } catch (e) {
+      } else {
+        // 모바일 환경에서는 이미지 공유
+        // 위젯을 이미지로 변환
+        final RenderRepaintBoundary boundary = _profileImageKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+        final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+        final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        
+        if (byteData == null) {
+          if (mounted) {
+            Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('이미지 생성에 실패했습니다'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        // 로딩 다이얼로그 닫기
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('공유 실패: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Navigator.of(context).pop();
+        }
+
+        final bytes = byteData.buffer.asUint8List();
+        final filename = 'likegame_profile_${DateTime.now().millisecondsSinceEpoch}.png';
+        
+        try {
+          await ShareService.shareAsFile(bytes, filename);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('공유 실패: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       }
 

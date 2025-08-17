@@ -24,4 +24,24 @@ class ShareService {
       await platform_share.ShareService.shareAsFile(bytes, filename);
     }
   }
+
+  // 웹에서 텍스트 공유
+  static Future<void> shareText(String text, {String? title}) async {
+    if (kIsWeb) {
+      await platform_share.ShareService.shareText(text, title: title);
+    } else {
+      // 모바일에서는 기본 공유 기능 사용
+      await platform_share.ShareService.shareText(text, title: title);
+    }
+  }
+
+  // 웹에서 이미지 공유 (Data URL 사용)
+  static Future<void> shareImageAsDownload(String imageDataUrl, String filename) async {
+    if (kIsWeb) {
+      await platform_share.ShareService.shareImageAsDownload(imageDataUrl, filename);
+    } else {
+      // 모바일에서는 지원하지 않음
+      throw UnsupportedError('shareImageAsDownload is not supported on mobile');
+    }
+  }
 }
