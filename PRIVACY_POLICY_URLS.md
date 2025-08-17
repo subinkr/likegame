@@ -38,7 +38,7 @@
 ## 연락처 정보
 
 - **개인정보 보호책임자**: 개발팀
-- **이메일**: privacy@likegame.life
+- **이메일**: support@likegame.life
 - **웹사이트**: https://likegame.life
 
 ## 시행일자

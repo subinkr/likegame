@@ -6,10 +6,54 @@
       "use": "@vercel/static"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/build/web/index.html"
+      "src": "/favicon.ico",
+      "dest": "/build/web/favicon.png"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/build/web/manifest.json"
+    },
+    {
+      "src": "/flutter.js",
+      "dest": "/build/web/flutter.js"
+    },
+    {
+      "src": "/flutter_bootstrap.js",
+      "dest": "/build/web/flutter_bootstrap.js"
+    },
+    {
+      "src": "/main.dart.js",
+      "dest": "/build/web/main.dart.js"
+    },
+    {
+      "src": "/flutter_service_worker.js",
+      "dest": "/build/web/flutter_service_worker.js"
+    },
+    {
+      "src": "/version.json",
+      "dest": "/build/web/version.json"
+    },
+    {
+      "src": "/icons/(.*)",
+      "dest": "/build/web/icons/$1"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/build/web/assets/$1"
+    },
+    {
+      "src": "/canvaskit/(.*)",
+      "dest": "/build/web/canvaskit/$1"
+    },
+    {
+      "src": "/privacy",
+      "dest": "/build/web/privacy.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/build/web/index.html"
     }
   ]
 }

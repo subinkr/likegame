@@ -5,6 +5,7 @@ import '../services/quest_service.dart';
 import '../providers/user_provider.dart';
 import '../utils/text_utils.dart';
 import 'quest_detail_dialog.dart';
+import 'quest_view_dialog.dart';
 import 'quest_add_dialog.dart';
 
 class QuestsScreen extends StatefulWidget {
@@ -212,11 +213,11 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
     );
   }
 
-  // 퀘스트 상세 다이얼로그
-  Future<void> _showQuestDetailDialog(Quest quest) async {
+  // 퀘스트 상세 다이얼로그 (읽기 전용)
+  Future<void> _showQuestViewDialog(Quest quest) async {
     await showDialog(
       context: context,
-      builder: (context) => QuestDetailDialog(
+      builder: (context) => QuestViewDialog(
         quest: quest,
         questService: _questService,
         onQuestUpdated: _onQuestUpdated,
@@ -416,7 +417,7 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
-        onTap: () => _showQuestDetailDialog(quest),
+        onTap: () => _showQuestViewDialog(quest),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

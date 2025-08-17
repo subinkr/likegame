@@ -77,7 +77,7 @@ class _MainScreenState extends State<MainScreen> {
             IconButton(
               icon: const Icon(Icons.store),
               onPressed: () => _showTemplateMarketplace(),
-              tooltip: '템플릿 마켓플레이스',
+              tooltip: '템플릿 목록',
             ),
           ],
           Container(
