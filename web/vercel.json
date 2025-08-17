@@ -2,15 +2,15 @@
   "routes": [
     {
       "src": "/privacy",
-      "dest": "/privacy_policy.html"
+      "dest": "/privacy.html"
     },
     {
       "src": "/privacy-policy",
-      "dest": "/privacy_policy.html"
+      "dest": "/privacy.html"
     },
     {
       "src": "/privacy_policy",
-      "dest": "/privacy_policy.html"
+      "dest": "/privacy.html"
     },
     {
       "src": "/(.*)",
@@ -19,7 +19,7 @@
   ],
   "headers": [
     {
-      "source": "/privacy_policy.html",
+      "source": "/privacy.html",
       "headers": [
         {
           "key": "Content-Type",
