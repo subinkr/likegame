@@ -48,13 +48,29 @@
         height: 100%;
         justify-content: center;
         width: 100%;
+        flex-direction: column;
       }
       #loading img {
         animation: 1s ease-in-out 0s infinite alternate breathe;
         opacity: .66;
         transition: opacity .4s;
+        margin-bottom: 20px;
       }
       #loading.main_done img {
+        opacity: 1;
+      }
+      .privacy-link {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        color: #007AFF;
+        text-decoration: none;
+        font-size: 14px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+      .privacy-link:hover {
         opacity: 1;
       }
       @keyframes breathe {
@@ -67,6 +83,7 @@
       }
     </style>
     <img src="icons/Icon-192.png" alt="Loading indicator..." />
+    <a href="/privacy" class="privacy-link">개인정보처리방침</a>
   </div>
   <script src="flutter_bootstrap.js" async></script>
 </body>

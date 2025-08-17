@@ -7,9 +7,17 @@
     {
       "source": "/privacy_policy",
       "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
     }
   ],
   "routes": [
+    {
+      "src": "/privacy/(.*)",
+      "dest": "/privacy/index.html"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
