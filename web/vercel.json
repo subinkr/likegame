@@ -1,33 +1,18 @@
 {
   "rewrites": [
     {
-      "source": "/privacy",
-      "destination": "/privacy.html"
-    },
-    {
       "source": "/privacy-policy",
-      "destination": "/privacy.html"
+      "destination": "/privacy/index.html"
     },
     {
       "source": "/privacy_policy",
-      "destination": "/privacy.html"
+      "destination": "/privacy/index.html"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
       "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/privacy.html",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "text/html; charset=utf-8"
-        }
-      ]
     }
   ]
 }
