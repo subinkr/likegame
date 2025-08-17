@@ -1,17 +1,19 @@
 {
+  "rewrites": [
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/privacy-policy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/privacy_policy",
+      "destination": "/privacy.html"
+    }
+  ],
   "routes": [
-    {
-      "src": "/privacy",
-      "dest": "/privacy.html"
-    },
-    {
-      "src": "/privacy-policy",
-      "dest": "/privacy.html"
-    },
-    {
-      "src": "/privacy_policy",
-      "dest": "/privacy.html"
-    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
