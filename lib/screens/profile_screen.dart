@@ -407,15 +407,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('프로필'.withKoreanWordBreak),
+        centerTitle: true,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: _shareProfileAsImage,
-            tooltip: '프로필 공유',
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: _shareProfileAsImage,
+              tooltip: '프로필 공유',
+            ),
           ),
         ],
       ),
