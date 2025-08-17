@@ -15,6 +15,7 @@ import '../utils/text_utils.dart';
 import '../providers/user_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/models.dart';
+import 'privacy_policy_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -737,6 +738,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.lock,
                         title: '비밀번호 변경'.withKoreanWordBreak,
                         onTap: _showChangePasswordDialog,
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.privacy_tip,
+                        title: '개인정보 처리방침'.withKoreanWordBreak,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const PrivacyPolicyScreen(),
+                            ),
+                          );
+                        },
                       ),
                       Consumer<ThemeProvider>(
                         builder: (context, themeProvider, child) {
