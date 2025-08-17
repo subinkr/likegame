@@ -1,0 +1,31 @@
+{
+  "routes": [
+    {
+      "src": "/privacy",
+      "dest": "/privacy_policy.html"
+    },
+    {
+      "src": "/privacy-policy",
+      "dest": "/privacy_policy.html"
+    },
+    {
+      "src": "/privacy_policy",
+      "dest": "/privacy_policy.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/privacy_policy.html",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}
