@@ -16,11 +16,34 @@ class _SkillsScreenState extends State<SkillsScreen> {
   final SkillService _skillService = SkillService();
   List<Skill> _skills = [];
   bool _isLoading = true;
+  
+  // 스크롤 컨트롤러
+  final ScrollController _scrollController = ScrollController();
+  bool _showFloatingActionButton = true;
 
   @override
   void initState() {
     super.initState();
     _loadSkills();
+    
+    // 스크롤 리스너 추가
+    _scrollController.addListener(() {
+      if (_scrollController.offset > 100 && _showFloatingActionButton) {
+        setState(() {
+          _showFloatingActionButton = false;
+        });
+      } else if (_scrollController.offset <= 100 && !_showFloatingActionButton) {
+        setState(() {
+          _showFloatingActionButton = true;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSkills() async {
@@ -451,6 +474,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
               ),
                     )
                                     : ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.all(16),
                       itemCount: _skills.length,
                       itemBuilder: (context, index) {
@@ -459,12 +483,12 @@ class _SkillsScreenState extends State<SkillsScreen> {
                       },
                     ),
               ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _showFloatingActionButton ? FloatingActionButton(
         onPressed: _showAddSkillDialog,
         backgroundColor: Theme.of(context).primaryColor,
         heroTag: 'skills_fab',
         child: const Icon(Icons.add, color: Colors.white),
-      ),
+      ) : null,
     );
   }
 

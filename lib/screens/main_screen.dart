@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'dashboard_screen.dart';
 import 'skills_screen.dart';
 import 'quests_screen.dart';
+import 'template_list_screen.dart';
 import 'profile_screen.dart';
 import '../utils/text_utils.dart';
 import '../providers/user_provider.dart';
@@ -17,17 +18,19 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  late final GlobalKey<QuestsScreenState> _questsScreenKey;
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    _questsScreenKey = GlobalKey<QuestsScreenState>();
+    _screens = [
+      const DashboardScreen(),
+      const SkillsScreen(),
+      QuestsScreen(key: _questsScreenKey),
+    ];
   }
-
-            final List<Widget> _screens = [
-            const DashboardScreen(),
-            const SkillsScreen(),
-            const QuestsScreen(),
-          ];
 
           final List<String> _titles = [
             '스탯'.withKoreanWordBreak,
@@ -69,6 +72,14 @@ class _MainScreenState extends State<MainScreen> {
         ),
         centerTitle: true,
         actions: [
+          // 퀘스트 화면일 때만 템플릿 관련 버튼 표시
+          if (_currentIndex == 2) ...[
+            IconButton(
+              icon: const Icon(Icons.store),
+              onPressed: () => _showTemplateMarketplace(),
+              tooltip: '템플릿 마켓플레이스',
+            ),
+          ],
           Container(
             margin: const EdgeInsets.only(right: 8),
             child: IconButton(
@@ -141,6 +152,27 @@ class _MainScreenState extends State<MainScreen> {
         );
       },
     );
+  }
+
+  void _showTemplateMarketplace() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const TemplateListScreen(),
+      ),
+    );
+    
+    // 퀘스트가 생성되었다면 퀘스트 화면의 데이터를 새로고침
+    if (result == true) {
+      // 퀘스트 화면으로 이동
+      setState(() {
+        _currentIndex = 2;
+      });
+      
+      // 화면 전환 후 새로고침
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _questsScreenKey.currentState?.refreshData();
+      });
+    }
   }
 
   Widget _buildNavItem({

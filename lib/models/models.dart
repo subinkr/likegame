@@ -270,7 +270,7 @@ class Quest {
   final String userId;
   final String title;
   final String? description;
-  final String? statId;
+
   final DateTime? dueDate;
   final String priority; // 'low', 'normal', 'high', 'highest'
   final String difficulty; // 'F', 'E', 'D', 'C', 'B', 'A'
@@ -281,12 +281,9 @@ class Quest {
   
   // 새로운 프리미엄 기능들
   final String? category;
-  final List<String> tags;
   final List<SubTask> subTasks;
   final String? repeatPattern; // 'daily', 'weekly', 'monthly', 'yearly', 'custom'
   final Map<String, dynamic>? repeatConfig;
-  final int estimatedMinutes;
-  final int actualMinutes;
   final DateTime? startedAt;
 
   final String? templateId;
@@ -297,7 +294,7 @@ class Quest {
     required this.userId,
     required this.title,
     this.description,
-    this.statId,
+
     this.dueDate,
     required this.priority,
     this.difficulty = 'F',
@@ -306,12 +303,10 @@ class Quest {
     required this.createdAt,
     required this.updatedAt,
     this.category,
-    this.tags = const [],
+
     this.subTasks = const [],
     this.repeatPattern,
     this.repeatConfig,
-    this.estimatedMinutes = 0,
-    this.actualMinutes = 0,
     this.startedAt,
 
     this.templateId,
@@ -324,7 +319,7 @@ class Quest {
       userId: json['user_id'],
       title: json['title'],
       description: json['description'],
-      statId: json['stat_id'],
+
       dueDate: json['due_date'] != null 
           ? DateTime.parse(json['due_date']) 
           : null,
@@ -337,7 +332,7 @@ class Quest {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       category: json['category'],
-      tags: List<String>.from(json['tags'] ?? []),
+
       subTasks: (json['sub_tasks'] as List<dynamic>? ?? [])
           .map((task) => SubTask.fromJson(task))
           .toList(),
@@ -345,8 +340,6 @@ class Quest {
       repeatConfig: json['repeat_config'] != null 
           ? Map<String, dynamic>.from(json['repeat_config'])
           : null,
-      estimatedMinutes: json['estimated_minutes'] ?? 0,
-      actualMinutes: json['actual_minutes'] ?? 0,
       startedAt: json['started_at'] != null 
           ? DateTime.parse(json['started_at']) 
           : null,
@@ -364,7 +357,6 @@ class Quest {
       'user_id': userId,
       'title': title,
       'description': description,
-      'stat_id': statId,
       'due_date': dueDate?.toIso8601String(),
       'priority': priority,
       'difficulty': difficulty,
@@ -373,12 +365,10 @@ class Quest {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'category': category,
-      'tags': tags,
+
       'sub_tasks': subTasks.map((task) => task.toJson()).toList(),
       'repeat_pattern': repeatPattern,
       'repeat_config': repeatConfig,
-      'estimated_minutes': estimatedMinutes,
-      'actual_minutes': actualMinutes,
       'started_at': startedAt?.toIso8601String(),
 
       'template_id': templateId,
@@ -492,15 +482,46 @@ class Quest {
     return '시간 추적 기능이 제거됨';
   }
 
-  String get estimatedTimeText {
-    if (estimatedMinutes == 0) return '예상 시간 없음';
-    if (estimatedMinutes < 60) {
-      return '${estimatedMinutes}분';
-    } else {
-      final hours = estimatedMinutes ~/ 60;
-      final minutes = estimatedMinutes % 60;
-      return minutes > 0 ? '${hours}시간 ${minutes}분' : '${hours}시간';
-    }
+  Quest copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? description,
+    DateTime? dueDate,
+    String? priority,
+    String? difficulty,
+    bool? isCompleted,
+    DateTime? completedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? category,
+    List<SubTask>? subTasks,
+    String? repeatPattern,
+    Map<String, dynamic>? repeatConfig,
+    DateTime? startedAt,
+    String? templateId,
+    Map<String, dynamic>? customFields,
+  }) {
+    return Quest(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      dueDate: dueDate ?? this.dueDate,
+      priority: priority ?? this.priority,
+      difficulty: difficulty ?? this.difficulty,
+      isCompleted: isCompleted ?? this.isCompleted,
+      completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      category: category ?? this.category,
+      subTasks: subTasks ?? this.subTasks,
+      repeatPattern: repeatPattern ?? this.repeatPattern,
+      repeatConfig: repeatConfig ?? this.repeatConfig,
+      startedAt: startedAt ?? this.startedAt,
+      templateId: templateId ?? this.templateId,
+      customFields: customFields ?? this.customFields,
+    );
   }
 }
 
@@ -539,6 +560,133 @@ class SubTask {
       'is_completed': isCompleted,
       'completed_at': completedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
+    };
+  }
+}
+
+// 퀘스트 템플릿 모델
+class QuestTemplate {
+  final String id;
+  final String title;
+  final String description;
+  final String category;
+  final List<SubTask> subTasks;
+  final String difficulty; // 'F', 'E', 'D', 'C', 'B', 'A'
+  final String? repeatPattern; // 'daily', 'weekly', 'monthly', 'yearly', 'custom'
+  final Map<String, dynamic>? repeatConfig;
+  final String? thumbnailUrl; // 썸네일 이미지 URL
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  QuestTemplate({
+    required this.id,
+    required this.title,
+    required this.description,
+    required     this.category,
+    this.subTasks = const [],
+    this.difficulty = 'F',
+    this.repeatPattern,
+    this.repeatConfig,
+    this.thumbnailUrl,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory QuestTemplate.fromJson(Map<String, dynamic> json) {
+    return QuestTemplate(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      category: json['category'],
+      subTasks: (json['sub_tasks'] as List<dynamic>? ?? [])
+          .map((task) => SubTask.fromJson(task))
+          .toList(),
+      difficulty: json['difficulty'] ?? 'F',
+      repeatPattern: json['repeat_pattern'],
+      repeatConfig: json['repeat_config'] != null 
+          ? Map<String, dynamic>.from(json['repeat_config'])
+          : null,
+      thumbnailUrl: json['thumbnail_url'],
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'category': category,
+      'sub_tasks': subTasks.map((task) => task.toJson()).toList(),
+      'difficulty': difficulty,
+      'repeat_pattern': repeatPattern,
+      'repeat_config': repeatConfig,
+      'thumbnail_url': thumbnailUrl,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
+  Color get difficultyColor {
+    switch (difficulty) {
+      case 'F':
+        return Colors.grey[400]!;
+      case 'E':
+        return Colors.grey[600]!;
+      case 'D':
+        return Colors.blue[400]!;
+      case 'C':
+        return Colors.green[400]!;
+      case 'B':
+        return Colors.orange[400]!;
+      case 'A':
+        return Colors.red[400]!;
+      default:
+        return Colors.grey[400]!;
+    }
+  }
+}
+
+// 사용자 템플릿 구매 내역 모델
+class UserTemplatePurchase {
+  final String id;
+  final String userId;
+  final String templateId;
+  final double price;
+  final DateTime purchasedAt;
+  final QuestTemplate? template;
+
+  UserTemplatePurchase({
+    required this.id,
+    required this.userId,
+    required this.templateId,
+    required this.price,
+    required this.purchasedAt,
+    this.template,
+  });
+
+  factory UserTemplatePurchase.fromJson(Map<String, dynamic> json) {
+    return UserTemplatePurchase(
+      id: json['id'],
+      userId: json['user_id'],
+      templateId: json['template_id'],
+      price: (json['price'] ?? 0.0).toDouble(),
+      purchasedAt: DateTime.parse(json['purchased_at']),
+      template: json['template'] != null 
+          ? QuestTemplate.fromJson(json['template'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'template_id': templateId,
+      'price': price,
+      'purchased_at': purchasedAt.toIso8601String(),
+      'template': template?.toJson(),
     };
   }
 }

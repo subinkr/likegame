@@ -67,16 +67,13 @@ class QuestService {
     required String userId,
     required String title,
     String? description,
-    String? statId,
     DateTime? dueDate,
     String priority = 'normal',
     String difficulty = 'F',
     String? category,
-    List<String> tags = const [],
     List<SubTask> subTasks = const [],
     String? repeatPattern,
     Map<String, dynamic>? repeatConfig,
-    int estimatedMinutes = 0,
     String? templateId,
     Map<String, dynamic>? customFields,
   }) async {
@@ -87,17 +84,14 @@ class QuestService {
             'user_id': userId,
             'title': title,
             'description': description,
-            'stat_id': statId,
+
             'due_date': dueDate?.toIso8601String(),
             'priority': priority,
             'difficulty': difficulty,
             'category': category,
-            'tags': tags,
             'sub_tasks': subTasks.map((task) => task.toJson()).toList(),
             'repeat_pattern': repeatPattern,
             'repeat_config': repeatConfig,
-            'estimated_minutes': estimatedMinutes,
-            'actual_minutes': 0,
             'template_id': templateId,
             'custom_fields': customFields,
             'created_at': DateTime.now().toIso8601String(),
@@ -117,7 +111,6 @@ class QuestService {
     required String questId,
     String? title,
     String? description,
-    String? statId,
     DateTime? dueDate,
     String? priority,
     String? difficulty,
@@ -128,7 +121,7 @@ class QuestService {
       
       if (title != null) updateData['title'] = title;
       if (description != null) updateData['description'] = description;
-      if (statId != null) updateData['stat_id'] = statId;
+
       if (dueDate != null) updateData['due_date'] = dueDate.toIso8601String();
       if (priority != null) updateData['priority'] = priority;
       if (difficulty != null) updateData['difficulty'] = difficulty;
@@ -236,9 +229,10 @@ class QuestService {
 
 
 
-  // 서브태스크 추가
+  // 서브태스크 추가 (완전히 새로 작성)
   Future<Quest> addSubTask(String questId, String title) async {
     try {
+      // 1. 현재 퀘스트 정보 가져오기
       final currentQuest = await _supabase
           .from('quests')
           .select('*')
@@ -248,15 +242,19 @@ class QuestService {
       final quest = Quest.fromJson(currentQuest);
       final subTasks = List<SubTask>.from(quest.subTasks);
       
+      // 2. 고유 ID 생성 (UUID 스타일)
+      final newId = '${DateTime.now().millisecondsSinceEpoch}_${(subTasks.length + 1)}';
+      
       final newSubTask = SubTask(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: title,
+        id: newId,
+        title: title.trim(),
         isCompleted: false,
         createdAt: DateTime.now(),
       );
       
       subTasks.add(newSubTask);
 
+      // 3. 서버 업데이트
       final response = await _supabase
           .from('quests')
           .update({
@@ -269,13 +267,15 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
+      print('서브태스크 추가 실패: $e');
       rethrow;
     }
   }
 
-  // 서브태스크 토글
+  // 서브태스크 토글 (완전히 새로 작성)
   Future<Quest> toggleSubTask(String questId, String subTaskId) async {
     try {
+      // 1. 현재 퀘스트 정보 가져오기
       final currentQuest = await _supabase
           .from('quests')
           .select('*')
@@ -283,19 +283,169 @@ class QuestService {
           .single();
       
       final quest = Quest.fromJson(currentQuest);
-      final subTasks = quest.subTasks.map((task) {
-        if (task.id == subTaskId) {
-          return SubTask(
-            id: task.id,
-            title: task.title,
-            isCompleted: !task.isCompleted,
-            completedAt: !task.isCompleted ? DateTime.now() : null,
-            createdAt: task.createdAt,
-          );
-        }
-        return task;
-      }).toList();
+      
+      // 2. 서브태스크 찾기 및 상태 변경
+      final subTaskIndex = quest.subTasks.indexWhere((task) => task.id == subTaskId);
+      if (subTaskIndex == -1) {
+        throw Exception('서브태스크를 찾을 수 없습니다: $subTaskId');
+      }
+      
+      final currentSubTask = quest.subTasks[subTaskIndex];
+      final updatedSubTask = SubTask(
+        id: currentSubTask.id,
+        title: currentSubTask.title,
+        isCompleted: !currentSubTask.isCompleted,
+        completedAt: !currentSubTask.isCompleted ? DateTime.now() : null,
+        createdAt: currentSubTask.createdAt,
+      );
+      
+      // 3. 서브태스크 리스트 업데이트
+      final updatedSubTasks = List<SubTask>.from(quest.subTasks);
+      updatedSubTasks[subTaskIndex] = updatedSubTask;
+      
+      // 4. 서버 업데이트
+      final response = await _supabase
+          .from('quests')
+          .update({
+            'sub_tasks': updatedSubTasks.map((task) => task.toJson()).toList(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', questId)
+          .select()
+          .single();
 
+      return Quest.fromJson(response);
+    } catch (e) {
+      print('서브태스크 토글 실패: $e');
+      rethrow;
+    }
+  }
+
+  // 서브태스크 삭제 (새로 추가)
+  Future<Quest> deleteSubTask(String questId, String subTaskId) async {
+    try {
+      // 1. 현재 퀘스트 정보 가져오기
+      final currentQuest = await _supabase
+          .from('quests')
+          .select('*')
+          .eq('id', questId)
+          .single();
+      
+      final quest = Quest.fromJson(currentQuest);
+      
+      // 2. 서브태스크 필터링
+      final updatedSubTasks = quest.subTasks.where((task) => task.id != subTaskId).toList();
+      
+      // 3. 서버 업데이트
+      final response = await _supabase
+          .from('quests')
+          .update({
+            'sub_tasks': updatedSubTasks.map((task) => task.toJson()).toList(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', questId)
+          .select()
+          .single();
+
+      return Quest.fromJson(response);
+    } catch (e) {
+      print('서브태스크 삭제 실패: $e');
+      rethrow;
+    }
+  }
+
+  // 서브태스크 수정 (새로 추가)
+  Future<Quest> updateSubTask(String questId, String subTaskId, String newTitle) async {
+    try {
+      // 1. 현재 퀘스트 정보 가져오기
+      final currentQuest = await _supabase
+          .from('quests')
+          .select('*')
+          .eq('id', questId)
+          .single();
+      
+      final quest = Quest.fromJson(currentQuest);
+      
+      // 2. 서브태스크 찾기 및 수정
+      final subTaskIndex = quest.subTasks.indexWhere((task) => task.id == subTaskId);
+      if (subTaskIndex == -1) {
+        throw Exception('서브태스크를 찾을 수 없습니다: $subTaskId');
+      }
+      
+      final currentSubTask = quest.subTasks[subTaskIndex];
+      final updatedSubTask = SubTask(
+        id: currentSubTask.id,
+        title: newTitle.trim(),
+        isCompleted: currentSubTask.isCompleted,
+        completedAt: currentSubTask.completedAt,
+        createdAt: currentSubTask.createdAt,
+      );
+      
+      // 3. 서브태스크 리스트 업데이트
+      final updatedSubTasks = List<SubTask>.from(quest.subTasks);
+      updatedSubTasks[subTaskIndex] = updatedSubTask;
+      
+      // 4. 서버 업데이트
+      final response = await _supabase
+          .from('quests')
+          .update({
+            'sub_tasks': updatedSubTasks.map((task) => task.toJson()).toList(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', questId)
+          .select()
+          .single();
+
+      return Quest.fromJson(response);
+    } catch (e) {
+      print('서브태스크 수정 실패: $e');
+      rethrow;
+    }
+  }
+
+  // 서브태스크 순서 변경 (새로 추가)
+  Future<Quest> reorderSubTasks(String questId, List<String> newOrder) async {
+    try {
+      // 1. 현재 퀘스트 정보 가져오기
+      final currentQuest = await _supabase
+          .from('quests')
+          .select('*')
+          .eq('id', questId)
+          .single();
+      
+      final quest = Quest.fromJson(currentQuest);
+      
+      // 2. 새로운 순서로 서브태스크 재배열
+      final Map<String, SubTask> taskMap = {
+        for (var task in quest.subTasks) task.id: task
+      };
+      
+      final reorderedSubTasks = newOrder
+          .where((id) => taskMap.containsKey(id))
+          .map((id) => taskMap[id]!)
+          .toList();
+      
+      // 3. 서버 업데이트
+      final response = await _supabase
+          .from('quests')
+          .update({
+            'sub_tasks': reorderedSubTasks.map((task) => task.toJson()).toList(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', questId)
+          .select()
+          .single();
+
+      return Quest.fromJson(response);
+    } catch (e) {
+      print('서브태스크 순서 변경 실패: $e');
+      rethrow;
+    }
+  }
+
+  // 서브태스크 업데이트 (새로 추가)
+  Future<Quest> updateQuestSubTasks(String questId, List<SubTask> subTasks) async {
+    try {
       final response = await _supabase
           .from('quests')
           .update({
@@ -308,11 +458,49 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
+      print('서브태스크 업데이트 실패: $e');
       rethrow;
     }
   }
 
+  // 모든 서브태스크 완료/미완료 토글 (새로 추가)
+  Future<Quest> toggleAllSubTasks(String questId, bool isCompleted) async {
+    try {
+      // 1. 현재 퀘스트 정보 가져오기
+      final currentQuest = await _supabase
+          .from('quests')
+          .select('*')
+          .eq('id', questId)
+          .single();
+      
+      final quest = Quest.fromJson(currentQuest);
+      
+      // 2. 모든 서브태스크 상태 변경
+      final updatedSubTasks = quest.subTasks.map((task) => SubTask(
+        id: task.id,
+        title: task.title,
+        isCompleted: isCompleted,
+        completedAt: isCompleted ? DateTime.now() : null,
+        createdAt: task.createdAt,
+      )).toList();
+      
+      // 3. 서버 업데이트
+      final response = await _supabase
+          .from('quests')
+          .update({
+            'sub_tasks': updatedSubTasks.map((task) => task.toJson()).toList(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', questId)
+          .select()
+          .single();
 
+      return Quest.fromJson(response);
+    } catch (e) {
+      print('모든 서브태스크 토글 실패: $e');
+      rethrow;
+    }
+  }
 
   // 퀘스트 복제
   Future<Quest> duplicateQuest(String userId, Quest originalQuest) async {
@@ -322,14 +510,40 @@ class QuestService {
         title: '${originalQuest.title} (복사본)',
         description: originalQuest.description,
         category: originalQuest.category,
-        tags: originalQuest.tags,
         subTasks: originalQuest.subTasks,
         priority: originalQuest.priority,
         difficulty: originalQuest.difficulty,
-        estimatedMinutes: originalQuest.estimatedMinutes,
         repeatPattern: originalQuest.repeatPattern,
         repeatConfig: originalQuest.repeatConfig,
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 템플릿에서 퀘스트 생성
+  Future<Quest> createQuestFromTemplate({
+    required String userId,
+    required QuestTemplate template,
+    DateTime? dueDate,
+    String priority = 'normal',
+  }) async {
+    try {
+      final createdQuest = await addQuest(
+        userId: userId,
+        title: template.title,
+        description: template.description,
+        category: template.category,
+        subTasks: template.subTasks,
+        difficulty: template.difficulty,
+        repeatPattern: template.repeatPattern,
+        repeatConfig: template.repeatConfig,
+        dueDate: dueDate,
+        priority: priority,
+        templateId: template.id,
+      );
+      
+      return createdQuest;
     } catch (e) {
       rethrow;
     }
@@ -343,21 +557,11 @@ class QuestService {
       final thisWeek = now.subtract(Duration(days: now.weekday - 1));
       final thisMonth = DateTime(now.year, now.month, 1);
 
-      int totalTimeSpent = 0;
-      int totalEstimatedTime = 0;
       Map<String, int> categoryStats = {};
-      Map<String, int> tagStats = {};
 
       for (final quest in allQuests) {
-        totalTimeSpent += quest.actualMinutes;
-        totalEstimatedTime += quest.estimatedMinutes;
-        
         if (quest.category != null) {
           categoryStats[quest.category!] = (categoryStats[quest.category!] ?? 0) + 1;
-        }
-        
-        for (final tag in quest.tags) {
-          tagStats[tag] = (tagStats[tag] ?? 0) + 1;
         }
       }
 
@@ -365,11 +569,9 @@ class QuestService {
         'totalQuests': allQuests.length,
         'completedQuests': allQuests.where((q) => q.isCompleted).length,
         'overdueQuests': allQuests.where((q) => q.isOverdue).length,
-        'totalTimeSpent': totalTimeSpent,
-        'totalEstimatedTime': totalEstimatedTime,
         'completionRate': allQuests.isEmpty ? 0.0 : allQuests.where((q) => q.isCompleted).length / allQuests.length,
         'categoryStats': categoryStats,
-        'tagStats': tagStats,
+
         'thisWeekQuests': allQuests.where((q) => 
             q.createdAt.isAfter(thisWeek) && q.createdAt.isBefore(thisWeek.add(const Duration(days: 7)))
         ).length,
