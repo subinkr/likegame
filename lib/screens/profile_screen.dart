@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
+// 통합된 ShareService import
+import '../services/share_service.dart';
+
+
 import '../services/auth_service.dart';
 import '../services/stat_service.dart';
 import '../services/quest_service.dart';
@@ -19,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
   final StatService _statService = StatService();
   final QuestService _questService = QuestService();
+  final GlobalKey _profileImageKey = GlobalKey();
   
   List<SkillProgress> _skills = [];
   int _completedQuests = 0;
@@ -55,6 +64,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _isLoadingStats = false;
         });
+      }
+    }
+  }
+
+  Future<void> _shareProfileAsImage() async {
+    try {
+      // 로딩 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // 위젯을 이미지로 변환
+      final RenderRepaintBoundary boundary = _profileImageKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData == null) {
+        if (mounted) {
+          Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('이미지 생성에 실패했습니다'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 로딩 다이얼로그 닫기
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      final bytes = byteData.buffer.asUint8List();
+      final filename = 'likegame_profile_${DateTime.now().millisecondsSinceEpoch}.png';
+      
+      try {
+        if (kIsWeb) {
+          // 웹 환경에서는 다운로드
+          ShareService.shareAsDownload(bytes, filename);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('프로필 이미지가 다운로드되었습니다'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          // 모바일 환경에서는 공유
+          await ShareService.shareAsFile(bytes, filename);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('공유 실패: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('공유 실패: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -323,6 +410,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _shareProfileAsImage,
+            tooltip: '프로필 공유',
+          ),
+        ],
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
@@ -330,104 +424,219 @@ class _ProfileScreenState extends State<ProfileScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           
-          return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // 프로필 정보 카드
-                  Container(
-                    width: double.infinity,
+          return Stack(
+            children: [
+              // 공유용 이미지 위젯 (화면 밖에 위치)
+              Positioned(
+                left: -10000,
+                top: -10000,
+                child: RepaintBoundary(
+                  key: _profileImageKey,
+                  child: Container(
+                    width: 400,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
+                    child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: Icon(
-                            Icons.person,
-                            size: 24,
-                            color: Colors.white,
+                        // 실제 프로필 정보 카드
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardTheme.color,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: Theme.of(context).primaryColor,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 24,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      userProvider.userProfile?.nickname ?? '닉네임 없음',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _authService.currentUser?.email ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        
+                        const SizedBox(height: 16),
+                        
+                        // 스탯 목록 카드
+                        if (!_isLoadingStats && _skills.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardTheme.color,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ..._skills.take(5).map((skill) => _buildSkillItem(skill)),
+                                if (_skills.length > 5)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      '외 ${_skills.length - 5}개 스탯 더 보기',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // 통계 정보 카드 (컴팩트)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardTheme.color,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              Text(
-                                userProvider.userProfile?.nickname ?? '닉네임 없음',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              if (_isLoadingStats)
+                                const CircularProgressIndicator()
+                              else ...[
+                                _buildCompactStatItem(
+                                  icon: Icons.badge,
+                                  title: '스킬',
+                                  value: '${_skills.length}',
+                                  color: Colors.blue,
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _authService.currentUser?.email ?? '',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                _buildCompactStatItem(
+                                  icon: Icons.task_alt,
+                                  title: '완료한 퀘스트',
+                                  value: '$_completedQuests',
+                                  color: Colors.green,
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // 스탯 목록 카드
-                  if (!_isLoadingStats && _skills.isNotEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardTheme.color,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                ),
+              ),
+              
+              // 실제 프로필 내용
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                
+                // 실제 프로필 정보 카드
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ..._skills.take(5).map((skill) => _buildSkillItem(skill)),
-                          if (_skills.length > 5)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                '외 ${_skills.length - 5}개 스탯 더 보기',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                                  fontStyle: FontStyle.italic,
-                                ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Theme.of(context).primaryColor,
+                        child: Icon(
+                          Icons.person,
+                          size: 24,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              userProvider.userProfile?.nickname ?? '닉네임 없음',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              _authService.currentUser?.email ?? '',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // 통계 정보 카드 (컴팩트)
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // 스탯 목록 카드
+                if (!_isLoadingStats && _skills.isNotEmpty)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -442,141 +651,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        if (_isLoadingStats)
-                          const CircularProgressIndicator()
-                        else ...[
-                          _buildCompactStatItem(
-                            icon: Icons.badge,
-                            title: '스킬',
-                            value: '${_skills.length}',
-                            color: Colors.blue,
-                          ),
-                          _buildCompactStatItem(
-                            icon: Icons.task_alt,
-                            title: '완료한 퀘스트',
-                            value: '$_completedQuests',
-                            color: Colors.green,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // 메뉴 리스트
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildMenuItem(
-                          icon: Icons.edit,
-                          title: '닉네임 변경'.withKoreanWordBreak,
-                          onTap: _showEditProfileDialog,
-                        ),
-                                                      _buildMenuItem(
-                                icon: Icons.lock,
-                                title: '비밀번호 변경'.withKoreanWordBreak,
-                                onTap: _showChangePasswordDialog,
+                        ..._skills.take(5).map((skill) => _buildSkillItem(skill)),
+                        if (_skills.length > 5)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              '외 ${_skills.length - 5}개 스탯 더 보기',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                fontStyle: FontStyle.italic,
                               ),
-
-                              Consumer<ThemeProvider>(
-                                builder: (context, themeProvider, child) {
-                                  return _buildMenuItem(
-                                    icon: themeProvider.isDarkMode 
-                                        ? Icons.light_mode 
-                                        : Icons.dark_mode,
-                                    title: themeProvider.isDarkMode 
-                                        ? '라이트 모드'.withKoreanWordBreak
-                                        : '다크 모드'.withKoreanWordBreak,
-                                    onTap: () {
-                                      themeProvider.toggleTheme();
-                                    },
-                                  );
-                                },
-                              ),
-                        _buildMenuItem(
-                          icon: Icons.logout,
-                          title: '로그아웃'.withKoreanWordBreak,
-                          onTap: _showLogoutDialog,
-                          isDestructive: true,
-                        ),
-                        _buildMenuItem(
-                          icon: Icons.delete_forever,
-                          title: '계정 영구 삭제'.withKoreanWordBreak,
-                          onTap: _showDeleteAccountDialog,
-                          isDestructive: true,
-                          isLast: true,
-                        ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                              ],
+                
+                const SizedBox(height: 16),
+                
+                // 통계 정보 카드 (컴팩트)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      if (_isLoadingStats)
+                        const CircularProgressIndicator()
+                      else ...[
+                        _buildCompactStatItem(
+                          icon: Icons.badge,
+                          title: '스킬',
+                          value: '${_skills.length}',
+                          color: Colors.blue,
+                        ),
+                        _buildCompactStatItem(
+                          icon: Icons.task_alt,
+                          title: '완료한 퀘스트',
+                          value: '$_completedQuests',
+                          color: Colors.green,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // 메뉴 리스트
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _buildMenuItem(
+                        icon: Icons.edit,
+                        title: '닉네임 변경'.withKoreanWordBreak,
+                        onTap: _showEditProfileDialog,
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.lock,
+                        title: '비밀번호 변경'.withKoreanWordBreak,
+                        onTap: _showChangePasswordDialog,
+                      ),
+                      Consumer<ThemeProvider>(
+                        builder: (context, themeProvider, child) {
+                          return _buildMenuItem(
+                            icon: themeProvider.isDarkMode 
+                                ? Icons.light_mode 
+                                : Icons.dark_mode,
+                            title: themeProvider.isDarkMode 
+                                ? '라이트 모드'.withKoreanWordBreak
+                                : '다크 모드'.withKoreanWordBreak,
+                            onTap: () {
+                              themeProvider.toggleTheme();
+                            },
+                          );
+                        },
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.logout,
+                        title: '로그아웃'.withKoreanWordBreak,
+                        onTap: _showLogoutDialog,
+                        isDestructive: true,
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.delete_forever,
+                        title: '계정 영구 삭제'.withKoreanWordBreak,
+                        onTap: _showDeleteAccountDialog,
+                        isDestructive: true,
+                        isLast: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          );
+          ),
+        ],
+      );
         },
       ),
     );
   }
 
-  Widget _buildStatItem({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 32,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: color.withOpacity(0.8),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildCompactStatItem({
     required IconData icon,
@@ -616,6 +819,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+
+
   Widget _buildSkillItem(SkillProgress skill) {
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -629,6 +834,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+
+
+
 
   Color _getRankColor(String rank) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
