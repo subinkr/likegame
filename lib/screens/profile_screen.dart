@@ -11,6 +11,7 @@ import '../services/share_service.dart';
 import '../services/auth_service.dart';
 import '../services/stat_service.dart';
 import '../services/quest_service.dart';
+import '../services/skill_service.dart';
 import '../utils/text_utils.dart';
 import '../providers/user_provider.dart';
 import '../providers/theme_provider.dart';
@@ -28,10 +29,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
   final StatService _statService = StatService();
   final QuestService _questService = QuestService();
+  final SkillService _skillService = SkillService();
   final GlobalKey _profileImageKey = GlobalKey();
   
   List<SkillProgress> _skills = [];
   int _completedQuests = 0;
+  int _totalSkillsCount = 0;
   bool _isLoadingStats = true;
 
   @override
@@ -49,13 +52,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = context.read<UserProvider>().currentUserId;
       if (userId == null) return;
 
-      final skills = await _statService.getUserSkillsProgress(userId);
+      final stats = await _statService.getUserSkillsProgress(userId);
+      final skills = await _skillService.getUserSkills(userId);
       final quests = await _questService.getUserQuests(userId);
       final completedQuests = quests.where((quest) => quest.isCompleted).length;
 
       if (mounted) {
         setState(() {
-          _skills = skills;
+          _skills = stats;
+          _totalSkillsCount = skills.length;
           _completedQuests = completedQuests;
           _isLoadingStats = false;
         });
@@ -135,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           
           // 스탯 정보는 로컬 변수에서 가져오기
           shareText += '📈 성과\n';
-          shareText += '스킬: ${_skills.length}개\n';
+          shareText += '스킬: $_totalSkillsCount개\n';
           shareText += '완료한 퀘스트: $_completedQuests개\n\n';
           shareText += 'LikeGame에서 나의 성장을 확인해보세요! 🚀';
           
@@ -618,7 +623,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 _buildCompactStatItem(
                                   icon: Icons.badge,
                                   title: '스킬',
-                                  value: '${_skills.length}',
+                                  value: '$_totalSkillsCount',
                                   color: Colors.blue,
                                 ),
                                 _buildCompactStatItem(
@@ -757,12 +762,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (_isLoadingStats)
                         const CircularProgressIndicator()
                       else ...[
-                        _buildCompactStatItem(
-                          icon: Icons.badge,
-                          title: '스킬',
-                          value: '${_skills.length}',
-                          color: Colors.blue,
-                        ),
+                                                        _buildCompactStatItem(
+                                  icon: Icons.badge,
+                                  title: '스킬',
+                                  value: '$_totalSkillsCount',
+                                  color: Colors.blue,
+                                ),
                         _buildCompactStatItem(
                           icon: Icons.task_alt,
                           title: '완료한 퀘스트',
