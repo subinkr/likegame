@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "flutter build web",
+  "buildCommand": "flutter build web --base-href /",
   "outputDirectory": "build/web",
   "routes": [
     {
