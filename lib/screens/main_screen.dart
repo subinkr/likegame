@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dashboard_screen.dart';
 import 'skills_screen.dart';
@@ -7,16 +7,16 @@ import 'quests_screen.dart';
 import 'template_list_screen.dart';
 import 'profile_screen.dart';
 import '../utils/text_utils.dart';
-import '../providers/user_provider.dart';
+import '../providers/riverpod/user_provider.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
   late final GlobalKey<QuestsScreenState> _questsScreenKey;
   late final List<Widget> _screens;
@@ -32,125 +32,120 @@ class _MainScreenState extends State<MainScreen> {
     ];
   }
 
-          final List<String> _titles = [
-            '스탯'.withKoreanWordBreak,
-            '스킬'.withKoreanWordBreak,
-            '퀘스트'.withKoreanWordBreak,
-          ];
-
-
+  final List<String> _titles = [
+    '스탯'.withKoreanWordBreak,
+    '스킬'.withKoreanWordBreak,
+    '퀘스트'.withKoreanWordBreak,
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, child) {
-        // 탈퇴한 계정 메시지 표시
-        if (userProvider.deletedAccountMessage != null) {
+    final userProfile = ref.watch(userNotifierProvider);
+
+    return userProfile.when(
+      data: (profile) {
+        // 탈퇴한 계정 메시지 표시 (profile이 null인 경우)
+        if (profile == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(userProvider.deletedAccountMessage!),
+              const SnackBar(
+                content: Text('탈퇴한 계정입니다.'),
                 backgroundColor: Colors.red,
-                duration: const Duration(seconds: 3),
-                action: SnackBarAction(
-                  label: '확인',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  },
-                ),
+                duration: Duration(seconds: 3),
               ),
             );
           });
         }
         
         return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _titles[_currentIndex],
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        actions: [
-          // 퀘스트 화면일 때만 템플릿 관련 버튼 표시
-          if (_currentIndex == 2) ...[
-            IconButton(
-              icon: const Icon(Icons.store),
-              onPressed: () => _showTemplateMarketplace(),
-              tooltip: '템플릿 목록',
+          appBar: AppBar(
+            title: Text(
+              _titles[_currentIndex],
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          ],
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: const Icon(Icons.person),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              },
-              tooltip: '프로필',
+            centerTitle: true,
+            actions: [
+              // 퀘스트 화면일 때만 템플릿 관련 버튼 표시
+              if (_currentIndex == 2) ...[
+                IconButton(
+                  icon: const Icon(Icons.store),
+                  onPressed: () => _showTemplateMarketplace(),
+                  tooltip: '템플릿 목록',
+                ),
+              ],
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  icon: const Icon(Icons.person),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileScreen(),
+                      ),
+                    );
+                  },
+                  tooltip: '프로필',
+                ),
+              ),
+            ],
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
+            elevation: 0,
+            surfaceTintColor: Colors.transparent,
+          ),
+          body: IndexedStack(
+            index: _currentIndex,
+            children: _screens,
+          ),
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.black.withOpacity(0.3)
+                      : Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildNavItem(
+                      icon: Icons.description,
+                      label: '스탯'.withKoreanWordBreak,
+                      index: 0,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.badge,
+                      label: '스킬'.withKoreanWordBreak,
+                      index: 1,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.task_alt,
+                      label: '퀘스트'.withKoreanWordBreak,
+                      index: 2,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ],
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-              width: 1,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                    children: [
-                        _buildNavItem(
-                          icon: Icons.description,
-                          label: '스탯'.withKoreanWordBreak,
-                          index: 0,
-                        ),
-                        _buildNavItem(
-                          icon: Icons.badge,
-                          label: '스킬'.withKoreanWordBreak,
-                          index: 1,
-                        ),
-                        _buildNavItem(
-                          icon: Icons.task_alt,
-                          label: '퀘스트'.withKoreanWordBreak,
-                          index: 2,
-                        ),
-                      ],
-            ),
-          ),
-        ),
-      ),
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(child: Text('Error: $error')),
     );
   }
 

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/auth_service.dart';
 import '../../utils/text_utils.dart';
-import '../../providers/user_provider.dart';
+import '../../providers/riverpod/user_provider.dart';
 import '../../main.dart';
 import 'register_screen.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -25,28 +25,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // 탈퇴한 계정 메시지가 있으면 표시
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProvider = context.read<UserProvider>();
-      if (userProvider.deletedAccountMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(userProvider.deletedAccountMessage!),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: '확인',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
-          ),
-        );
-        // 메시지 표시 후 초기화
-        userProvider.clearProfile();
-      }
-    });
+    // 탈퇴한 계정 메시지는 계정 탈퇴 시에만 표시하도록 제거
+    // (로그아웃과 구분하기 위해 삭제)
   }
 
   @override
@@ -64,14 +44,14 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final response = await _authService.signIn(
+      await _authService.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
       
-              if (mounted) {
+      if (mounted) {
           // 명시적으로 UserProvider 업데이트
-          context.read<UserProvider>().loadUserProfile();
+          await ref.read(userNotifierProvider.notifier).loadUserProfile();
           
           // AuthWrapper 강제 새로고침을 위해 잠시 대기 후 Navigator 사용
           await Future.delayed(const Duration(milliseconds: 100));
@@ -87,6 +67,8 @@ class _LoginScreenState extends State<LoginScreen> {
         
         // 탈퇴한 계정인지 먼저 확인
         if (e.toString().contains('탈퇴한 계정입니다')) {
+          errorMessage = '탈퇴한 계정입니다.';
+        } else if (e.toString().contains('예기치 못한 오류가 발생했습니다')) {
           errorMessage = '탈퇴한 계정입니다.';
         } else {
           // 오류 메시지에서 Exception: 부분 제거

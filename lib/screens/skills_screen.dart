@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import '../services/skill_service.dart';
-import '../providers/user_provider.dart';
+import '../providers/riverpod/user_provider.dart';
 import '../utils/text_utils.dart';
 
-class SkillsScreen extends StatefulWidget {
+class SkillsScreen extends ConsumerStatefulWidget {
   const SkillsScreen({super.key});
 
   @override
-  State<SkillsScreen> createState() => _SkillsScreenState();
+  ConsumerState<SkillsScreen> createState() => _SkillsScreenState();
 }
 
-class _SkillsScreenState extends State<SkillsScreen> {
+class _SkillsScreenState extends ConsumerState<SkillsScreen> {
   final SkillService _skillService = SkillService();
   List<Skill> _skills = [];
   bool _isLoading = true;
@@ -24,7 +24,6 @@ class _SkillsScreenState extends State<SkillsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSkills();
     
     // 스크롤 리스너 추가
     _scrollController.addListener(() {
@@ -41,6 +40,16 @@ class _SkillsScreenState extends State<SkillsScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadSkills();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
@@ -48,16 +57,16 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
   Future<void> _loadSkills() async {
     try {
-      final userProvider = context.read<UserProvider>();
-      final userId = userProvider.currentUserId;
+      final userProfile = ref.read(userNotifierProvider);
+      final userId = userProfile.value?.id;
       
       if (userId != null) {
         final skills = await _skillService.getUserSkills(userId);
-      if (mounted) {
-        setState(() {
+        if (mounted) {
+          setState(() {
             _skills = skills;
-          _isLoading = false;
-        });
+            _isLoading = false;
+          });
         }
       }
     } catch (e) {
@@ -65,12 +74,16 @@ class _SkillsScreenState extends State<SkillsScreen> {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('스킬 로드 실패: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('스킬 로드 실패: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
       }
     }
   }
@@ -195,8 +208,8 @@ class _SkillsScreenState extends State<SkillsScreen> {
                           }
 
                           try {
-                            final userProvider = context.read<UserProvider>();
-                            final userId = userProvider.currentUserId;
+                            final userProfile = ref.read(userNotifierProvider);
+                            final userId = userProfile.value?.id;
                             
                             if (userId != null) {
                               await _skillService.addSkill(

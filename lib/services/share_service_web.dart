@@ -22,18 +22,13 @@ class ShareService {
 
   // 웹에서 텍스트 공유 (대안)
   static Future<void> shareText(String text, {String? title}) async {
-    if (html.window.navigator.share != null) {
-      try {
-        await html.window.navigator.share!({
-          'title': title ?? 'LikeGame',
-          'text': text,
-        });
-      } catch (e) {
-        // Web Share API가 실패하면 클립보드에 복사
-        _copyToClipboard(text);
-      }
-    } else {
-      // Web Share API가 지원되지 않으면 클립보드에 복사
+    try {
+      await html.window.navigator.share({
+        'title': title ?? 'LikeGame',
+        'text': text,
+      });
+    } catch (e) {
+      // Web Share API가 실패하면 클립보드에 복사
       _copyToClipboard(text);
     }
   }

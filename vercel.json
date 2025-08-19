@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "flutter build web",
+  "outputDirectory": "build/web",
   "builds": [
     {
       "src": "build/web/**",

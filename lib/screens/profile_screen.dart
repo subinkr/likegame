@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -13,19 +13,19 @@ import '../services/stat_service.dart';
 import '../services/quest_service.dart';
 import '../services/skill_service.dart';
 import '../utils/text_utils.dart';
-import '../providers/user_provider.dart';
-import '../providers/theme_provider.dart';
+import '../providers/riverpod/user_provider.dart';
+import '../providers/riverpod/theme_provider.dart';
 import '../models/models.dart';
 import 'privacy_policy_screen.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final AuthService _authService = AuthService();
   final StatService _statService = StatService();
   final QuestService _questService = QuestService();
@@ -42,14 +42,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     // 프로필 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<UserProvider>().loadUserProfile();
+      ref.read(userNotifierProvider.notifier).loadUserProfile();
       _loadStats();
     });
   }
 
   Future<void> _loadStats() async {
     try {
-      final userId = context.read<UserProvider>().currentUserId;
+      final userId = ref.read(userNotifierProvider).value?.id;
       if (userId == null) return;
 
       final stats = await _statService.getUserSkillsProgress(userId);
@@ -131,8 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
           }
           
-          final userProvider = context.read<UserProvider>();
-          final profile = userProvider.userProfile;
+          final profile = ref.read(userNotifierProvider).value;
           
           String shareText = '🎮 LikeGame 프로필\n\n';
           shareText += '닉네임: ${profile?.nickname ?? '익명'}\n';
@@ -211,9 +210,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showEditProfileDialog() async {
-    final userProvider = context.read<UserProvider>();
+    final profile = ref.read(userNotifierProvider).value;
     final nicknameController = TextEditingController(
-      text: userProvider.userProfile?.nickname ?? '',
+      text: profile?.nickname ?? '',
     );
 
     return showDialog(
@@ -240,8 +239,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await userProvider.updateUserProfile(
-                  userId: userProvider.currentUserId!,
+                final userId = ref.read(userNotifierProvider).value?.id;
+                if (userId == null) return;
+                
+                await ref.read(userNotifierProvider.notifier).updateUserProfile(
+                  userId: userId,
                   nickname: nicknameController.text.trim(),
                 );
                 if (mounted) {
@@ -376,9 +378,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               try {
                 await _authService.signOut();
                 if (mounted) {
-                  // 모든 화면을 닫고 로그인 화면으로 이동
+                  // 모든 화면을 닫고 메인 화면으로 이동 (AuthWrapper가 로그인 화면으로 리다이렉트)
                   Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login',
+                    '/',
                     (route) => false,
                   );
                 }
@@ -438,11 +440,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               try {
                 await _authService.deleteAccount(passwordController.text);
                 if (mounted) {
-                  // 모든 화면을 닫고 로그인 화면으로 이동
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login',
-                    (route) => false,
+                  // 탈퇴 성공 메시지 표시 후 로그인 화면으로 이동
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('계정이 성공적으로 탈퇴되었습니다.'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
                   );
+                  
+                  // 잠시 대기 후 메인 화면으로 이동 (AuthWrapper가 로그인 화면으로 리다이렉트)
+                  await Future.delayed(const Duration(seconds: 2));
+                  if (mounted) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/',
+                      (route) => false,
+                    );
+                  }
                 }
               } catch (e) {
                 if (mounted) {
@@ -486,11 +500,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
-          if (userProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Consumer(
+        builder: (context, ref, child) {
+          final userProfile = ref.watch(userNotifierProvider);
+          
+          return userProfile.when(
+            data: (profile) {
+              if (profile == null) {
+                return const Center(child: Text('프로필을 불러올 수 없습니다'));
+              }
           
           return Stack(
             children: [
@@ -538,7 +556,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      userProvider.userProfile?.nickname ?? '닉네임 없음',
+                                      profile.nickname ?? '닉네임 없음',
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -680,7 +698,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              userProvider.userProfile?.nickname ?? '닉네임 없음',
+                              profile.nickname ?? '닉네임 없음',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -817,17 +835,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           );
                         },
                       ),
-                      Consumer<ThemeProvider>(
-                        builder: (context, themeProvider, child) {
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final themeMode = ref.watch(themeNotifierProvider);
+                          final isDarkMode = themeMode.value == ThemeMode.dark;
+                          
                           return _buildMenuItem(
-                            icon: themeProvider.isDarkMode 
+                            icon: isDarkMode 
                                 ? Icons.light_mode 
                                 : Icons.dark_mode,
-                            title: themeProvider.isDarkMode 
+                            title: isDarkMode 
                                 ? '라이트 모드'.withKoreanWordBreak
                                 : '다크 모드'.withKoreanWordBreak,
                             onTap: () {
-                              themeProvider.toggleTheme();
+                              ref.read(themeNotifierProvider.notifier).toggleTheme();
                             },
                           );
                         },
@@ -851,8 +872,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-        ],
-      );
+              ],
+            );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Text('오류 발생: $error'),
+            ),
+          );
         },
       ),
     );

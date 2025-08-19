@@ -1,29 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import '../services/quest_service.dart';
-import '../providers/user_provider.dart';
+import '../providers/riverpod/user_provider.dart';
 import '../utils/text_utils.dart';
-import 'quest_detail_dialog.dart';
+import '../utils/error_handler.dart';
+import '../utils/animation_utils.dart';
+import '../widgets/skeleton_loader.dart';
 import 'quest_view_dialog.dart';
 import 'quest_add_dialog.dart';
+import 'quest_edit_dialog.dart';
 
-class QuestsScreen extends StatefulWidget {
+class QuestsScreen extends ConsumerStatefulWidget {
   const QuestsScreen({super.key});
 
   @override
-  State<QuestsScreen> createState() => QuestsScreenState();
+  ConsumerState<QuestsScreen> createState() => QuestsScreenState();
 }
 
-class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixin {
+class QuestsScreenState extends ConsumerState<QuestsScreen> with TickerProviderStateMixin {
   final QuestService _questService = QuestService();
   
   List<Quest> _quests = [];
   bool _isLoading = true;
 
-  // 필터링 및 정렬
-  String? _selectedPriority;
-  String? _selectedDifficulty;
+  // 정렬
   String _sortBy = 'dueDate'; // 'dueDate', 'priority', 'difficulty', 'createdAt', 'title'
   bool _sortAscending = true;
   
@@ -43,20 +44,37 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadData();
     
-    // 스크롤 리스너 추가
+    // 스크롤 리스너 추가 (방향 감지)
     _scrollController.addListener(() {
-      if (_scrollController.offset > 100 && (_showSearchBar || _showFloatingActionButton)) {
-        setState(() {
-          _showSearchBar = false;
-          _showFloatingActionButton = false;
-        });
-      } else if (_scrollController.offset <= 100 && (!_showSearchBar || !_showFloatingActionButton)) {
-        setState(() {
-          _showSearchBar = true;
-          _showFloatingActionButton = true;
-        });
+      final currentOffset = _scrollController.offset;
+      
+      // 스크롤 위치에 따른 UI 요소 표시/숨김
+      // 50픽셀 이상 스크롤하면 숨기기, 30픽셀 미만이면 보이기
+      if (currentOffset > 50) {
+        if (_showSearchBar || _showFloatingActionButton) {
+          setState(() {
+            _showSearchBar = false;
+            _showFloatingActionButton = false;
+          });
+        }
+      } else if (currentOffset < 30) {
+        if (!_showSearchBar || !_showFloatingActionButton) {
+          setState(() {
+            _showSearchBar = true;
+            _showFloatingActionButton = true;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadData();
       }
     });
   }
@@ -89,7 +107,13 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
     });
 
     try {
-      final userId = context.read<UserProvider>().currentUserId!;
+      final userProfile = ref.read(userNotifierProvider);
+      final userId = userProfile.value?.id;
+      
+      if (userId == null) {
+        throw Exception('사용자 정보를 찾을 수 없습니다');
+      }
+      
       final quests = await _questService.getUserQuests(userId);
 
       if (!mounted) return;
@@ -99,7 +123,6 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
         _isLoading = false;
       });
     } catch (e) {
-      
       if (!mounted) return;
       
       setState(() {
@@ -107,12 +130,22 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('데이터 로드 실패: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        final errorMessage = ErrorHandler.getUserFriendlyMessage(e);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('데이터 로드 실패: $errorMessage'),
+                backgroundColor: Colors.red,
+                action: SnackBarAction(
+                  label: '다시 시도',
+                  textColor: Colors.white,
+                  onPressed: () => _loadData(),
+                ),
+              ),
+            );
+          }
+        });
       }
     }
   }
@@ -139,16 +172,6 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
         quest.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
         (quest.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false)
       ).toList();
-    }
-    
-    // 우선순위 필터
-    if (_selectedPriority != null) {
-      filtered = filtered.where((quest) => quest.priority == _selectedPriority).toList();
-    }
-    
-    // 난이도 필터
-    if (_selectedDifficulty != null) {
-      filtered = filtered.where((quest) => quest.difficulty == _selectedDifficulty).toList();
     }
     
     // 정렬
@@ -202,6 +225,46 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
     }
   }
 
+  // 마감일 색상 반환
+  Color _getDueDateColor(DateTime dueDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDateOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final daysUntilDue = dueDateOnly.difference(today).inDays;
+
+    if (daysUntilDue < 0) {
+      return Colors.red; // 지난 마감일
+    } else if (daysUntilDue == 0) {
+      return Colors.orange; // 오늘 마감
+    } else if (daysUntilDue <= 3) {
+      return Colors.deepOrange; // 3일 이내
+    } else if (daysUntilDue <= 7) {
+      return Colors.amber; // 1주일 이내
+    } else {
+      return Colors.grey; // 여유 있음
+    }
+  }
+
+  // 마감일 포맷팅
+  String _formatDueDate(DateTime dueDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDateOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final daysUntilDue = dueDateOnly.difference(today).inDays;
+
+    if (daysUntilDue < 0) {
+      return '${daysUntilDue.abs()}일 지남';
+    } else if (daysUntilDue == 0) {
+      return '오늘 마감';
+    } else if (daysUntilDue == 1) {
+      return '내일 마감';
+    } else if (daysUntilDue <= 7) {
+      return '$daysUntilDue일 후';
+    } else {
+      return '${dueDate.month}/${dueDate.day}';
+    }
+  }
+
   // 퀘스트 추가 다이얼로그
   Future<void> _showAddQuestDialog() async {
     await showDialog(
@@ -227,100 +290,12 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
 
   // 퀘스트 수정 다이얼로그
   Future<void> _showEditQuestDialog(Quest quest) async {
-    // 간단한 수정 다이얼로그
-    final titleController = TextEditingController(text: quest.title);
-    final descriptionController = TextEditingController(text: quest.description ?? '');
-    DateTime? selectedDueDate = quest.dueDate;
-    String selectedPriority = quest.priority;
-    String selectedDifficulty = quest.difficulty;
-
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('퀘스트 수정'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: '제목'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(labelText: '설명'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  title: const Text('마감일'),
-                  subtitle: Text(selectedDueDate?.toString() ?? '선택하세요'),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDueDate ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) {
-                      setDialogState(() {
-                        selectedDueDate = date;
-                      });
-                    }
-                  },
-                ),
-                DropdownButtonFormField<String>(
-                  value: selectedPriority,
-                  items: ['low', 'normal', 'high', 'highest'].map((p) => 
-                    DropdownMenuItem(value: p, child: Text(p))
-                  ).toList(),
-                  onChanged: (value) => setDialogState(() => selectedPriority = value!),
-                  decoration: const InputDecoration(labelText: '우선순위'),
-                ),
-                DropdownButtonFormField<String>(
-                  value: selectedDifficulty,
-                  items: ['F', 'E', 'D', 'C', 'B', 'A'].map((d) => 
-                    DropdownMenuItem(value: d, child: Text(d))
-                  ).toList(),
-                  onChanged: (value) => setDialogState(() => selectedDifficulty = value!),
-                  decoration: const InputDecoration(labelText: '난이도'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await _questService.updateQuest(
-                    questId: quest.id,
-                    title: titleController.text.trim(),
-                    description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
-                    dueDate: selectedDueDate,
-                    priority: selectedPriority,
-                    difficulty: selectedDifficulty,
-                  );
-                  Navigator.of(context).pop();
-                  _loadData();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('퀘스트가 수정되었습니다'), backgroundColor: Colors.green),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('수정 실패: ${e.toString()}'), backgroundColor: Colors.red),
-                  );
-                }
-              },
-              child: const Text('수정'),
-            ),
-          ],
-        ),
+      builder: (context) => QuestEditDialog(
+        quest: quest,
+        questService: _questService,
+        onQuestUpdated: _loadData,
       ),
     );
   }
@@ -363,7 +338,13 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
   // 퀘스트 복제
   Future<void> _duplicateQuest(Quest quest) async {
     try {
-      final userId = context.read<UserProvider>().currentUserId!;
+      final userProfile = ref.read(userNotifierProvider);
+      final userId = userProfile.value?.id;
+      
+      if (userId == null) {
+        throw Exception('사용자 정보를 찾을 수 없습니다');
+      }
+      
       await _questService.duplicateQuest(userId, quest);
       _loadData();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -521,16 +502,35 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
                   ),
                 ],
               ),
-              if (quest.subTasks.isNotEmpty) ...[
+              if (quest.subTasks.isNotEmpty || quest.dueDate != null) ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.list, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      '서브태스크: ${quest.subTasks.where((task) => task.isCompleted).length}/${quest.subTasks.length}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
+                    if (quest.subTasks.isNotEmpty) ...[
+                      const Icon(Icons.list, size: 16, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        '서브태스크: ${quest.subTasks.where((task) => task.isCompleted).length}/${quest.subTasks.length}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                    const Spacer(),
+                    if (quest.dueDate != null) ...[
+                      Icon(
+                        Icons.schedule,
+                        size: 16,
+                        color: _getDueDateColor(quest.dueDate!),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDueDate(quest.dueDate!),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getDueDateColor(quest.dueDate!),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -616,10 +616,10 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
             ),
             // 검색 및 필터 (스크롤 시 숨김)
             AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 200),
               height: _showSearchBar ? null : 0,
               child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 200),
                 opacity: _showSearchBar ? 1.0 : 0.0,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -654,48 +654,37 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedPriority,
+                              value: _sortBy,
                               decoration: const InputDecoration(
-                                labelText: '우선순위',
+                                labelText: '정렬 기준',
                                 border: OutlineInputBorder(),
                               ),
-                              items: [
-                                const DropdownMenuItem(value: null, child: Text('전체')),
-                                const DropdownMenuItem(value: 'low', child: Text('낮음')),
-                                const DropdownMenuItem(value: 'normal', child: Text('보통')),
-                                const DropdownMenuItem(value: 'high', child: Text('높음')),
-                                const DropdownMenuItem(value: 'highest', child: Text('긴급')),
+                              items: const [
+                                DropdownMenuItem(value: 'dueDate', child: Text('마감일')),
+                                DropdownMenuItem(value: 'priority', child: Text('우선순위')),
+                                DropdownMenuItem(value: 'difficulty', child: Text('난이도')),
+                                DropdownMenuItem(value: 'createdAt', child: Text('생성일')),
+                                DropdownMenuItem(value: 'title', child: Text('퀘스트 이름')),
                               ],
                               onChanged: (value) {
                                 setState(() {
-                                  _selectedPriority = value;
+                                  _sortBy = value!;
                                 });
                               },
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedDifficulty,
-                              decoration: const InputDecoration(
-                                labelText: '난이도',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: [
-                                const DropdownMenuItem(value: null, child: Text('전체')),
-                                const DropdownMenuItem(value: 'F', child: Text('F')),
-                                const DropdownMenuItem(value: 'E', child: Text('E')),
-                                const DropdownMenuItem(value: 'D', child: Text('D')),
-                                const DropdownMenuItem(value: 'C', child: Text('C')),
-                                const DropdownMenuItem(value: 'B', child: Text('B')),
-                                const DropdownMenuItem(value: 'A', child: Text('A')),
-                              ],
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedDifficulty = value;
-                                });
-                              },
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _sortAscending = !_sortAscending;
+                              });
+                            },
+                            icon: Icon(
+                              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                              color: Theme.of(context).primaryColor,
                             ),
+                            tooltip: _sortAscending ? '오름차순' : '내림차순',
                           ),
                         ],
                       ),
@@ -720,18 +709,22 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
           ),
         ],
       ),
-      floatingActionButton: _showFloatingActionButton ? FloatingActionButton(
-        onPressed: _showAddQuestDialog,
-        backgroundColor: Theme.of(context).primaryColor,
-        heroTag: 'quests_fab',
-        child: const Icon(Icons.add, color: Colors.white),
-      ) : null,
+      floatingActionButton: AnimatedScale(
+        scale: _showFloatingActionButton ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 200),
+        child: FloatingActionButton(
+          onPressed: _showAddQuestDialog,
+          backgroundColor: Theme.of(context).primaryColor,
+          heroTag: 'quests_fab',
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+      ),
     );
   }
 
   Widget _buildQuestList(List<Quest> quests) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildSkeletonLoader();
     }
 
     if (quests.isEmpty) {
@@ -755,13 +748,30 @@ class QuestsScreenState extends State<QuestsScreen> with TickerProviderStateMixi
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        controller: _scrollController,
-        itemCount: quests.length,
-        itemBuilder: (context, index) => _buildQuestCard(quests[index]),
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: quests.length,
+      itemBuilder: (context, index) => AnimationUtils.fadeIn(
+        child: _buildQuestCard(quests[index]),
+        delay: index * 0.1, // 각 카드마다 0.1초씩 지연
       ),
+    );
+  }
+
+  Widget _buildSkeletonLoader() {
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: 6, // 6개의 스켈레톤 아이템 표시
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: SkeletonCard(
+            height: 140,
+            showAvatar: true,
+            textLines: 3,
+          ),
+        );
+      },
     );
   }
 }

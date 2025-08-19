@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import '../services/quest_service.dart';
-import '../providers/user_provider.dart';
+import '../providers/riverpod/user_provider.dart';
 import '../utils/text_utils.dart';
-import 'package:provider/provider.dart';
 
-class QuestAddDialog extends StatefulWidget {
+class QuestAddDialog extends ConsumerStatefulWidget {
   final QuestService questService;
   final Function() onQuestAdded;
 
@@ -16,10 +16,10 @@ class QuestAddDialog extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<QuestAddDialog> createState() => _QuestAddDialogState();
+  ConsumerState<QuestAddDialog> createState() => _QuestAddDialogState();
 }
 
-class _QuestAddDialogState extends State<QuestAddDialog> {
+class _QuestAddDialogState extends ConsumerState<QuestAddDialog> {
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
   final subTaskController = TextEditingController();
@@ -35,6 +35,12 @@ class _QuestAddDialogState extends State<QuestAddDialog> {
     descriptionController.dispose();
     subTaskController.dispose();
     super.dispose();
+  }
+
+  // UserProvider 접근 부분 수정
+  String? get currentUserId {
+    final userProfile = ref.read(userNotifierProvider);
+    return userProfile.value?.id;
   }
 
   @override
@@ -502,7 +508,10 @@ class _QuestAddDialogState extends State<QuestAddDialog> {
                       }
 
                       try {
-                        final userId = context.read<UserProvider>().currentUserId!;
+                        final userId = currentUserId;
+                        if (userId == null) {
+                          throw Exception('사용자 정보를 찾을 수 없습니다');
+                        }
                         
                         // 서브태스크 리스트를 SubTask 객체로 변환
                         final subTaskObjects = subTasks.map((title) => SubTask(

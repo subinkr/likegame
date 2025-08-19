@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import '../services/template_service.dart';
 import '../services/quest_service.dart';
-import '../providers/user_provider.dart';
+import '../providers/riverpod/user_provider.dart';
 
 class TemplateListScreen extends StatefulWidget {
   const TemplateListScreen({super.key});
@@ -284,7 +284,7 @@ class _TemplateListScreenState extends State<TemplateListScreen> {
 }
 
 // 템플릿 상세 화면
-class TemplateDetailScreen extends StatefulWidget {
+class TemplateDetailScreen extends ConsumerStatefulWidget {
   final QuestTemplate template;
 
   const TemplateDetailScreen({
@@ -293,10 +293,10 @@ class TemplateDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<TemplateDetailScreen> createState() => _TemplateDetailScreenState();
+  ConsumerState<TemplateDetailScreen> createState() => _TemplateDetailScreenState();
 }
 
-class _TemplateDetailScreenState extends State<TemplateDetailScreen> {
+class _TemplateDetailScreenState extends ConsumerState<TemplateDetailScreen> {
   bool _isLoading = false;
 
 
@@ -480,14 +480,15 @@ class _TemplateDetailScreenState extends State<TemplateDetailScreen> {
     });
 
     try {
-      final userId = context.read<UserProvider>().currentUserId;
+      final userProfile = ref.read(userNotifierProvider);
+      final userId = userProfile.value?.id;
       if (userId == null) {
         throw Exception('로그인이 필요합니다.');
       }
 
       // 템플릿에서 퀘스트 생성
       final questService = QuestService();
-      final createdQuest = await questService.createQuestFromTemplate(
+      await questService.createQuestFromTemplate(
         userId: userId,
         template: widget.template,
       );

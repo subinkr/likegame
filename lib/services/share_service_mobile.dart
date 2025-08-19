@@ -14,7 +14,6 @@ class ShareService {
     await Share.shareXFiles(
       [XFile(imagePath)],
       text: '내 프로필을 확인해보세요! 🎮',
-      subject: 'LikeGame 프로필',
     );
   }
 

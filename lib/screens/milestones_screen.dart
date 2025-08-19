@@ -28,7 +28,7 @@ class MilestonesScreen extends StatefulWidget {
 class _MilestonesScreenState extends State<MilestonesScreen> {
   final AuthService _authService = AuthService();
   final StatService _statService = StatService();
-  final EventService _eventService = EventService();
+  final EventService _eventService = EventService.instance;
   
   List<Milestone> _milestones = [];
   Set<String> _completedMilestoneIds = {};
