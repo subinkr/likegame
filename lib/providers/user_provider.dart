@@ -24,7 +24,6 @@ class UserProvider extends ChangeNotifier {
       _userProfile = profile;
       _deletedAccountMessage = null; // 탈퇴 메시지 초기화
     } catch (e) {
-      print('UserProvider - 프로필 로드 실패: $e');
       _userProfile = null;
       
       // 탈퇴한 계정인지 확인

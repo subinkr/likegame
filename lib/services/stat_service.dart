@@ -104,10 +104,12 @@ class StatService {
           .toList();
 
       // 마일스톤이 있는 스탯만 필터링
-      return allProgress.where((progress) => 
+      final filteredProgress = allProgress.where((progress) => 
           skillIdsWithMilestones.contains(progress.skillId)
       ).toList();
-    } catch (e) {
+      
+      return filteredProgress;
+    } catch (e, stackTrace) {
       rethrow;
     }
   }

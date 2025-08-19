@@ -20,7 +20,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final AuthService _authService = AuthService();
   final StatService _statService = StatService();
   final PriorityService _priorityService = PriorityService();
-  final EventService _eventService = EventService();
+  final EventService _eventService = EventService.instance;
   final SupabaseClient _supabase = Supabase.instance.client;
   StreamSubscription? _milestoneSubscription;
   
@@ -74,7 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -145,7 +145,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             newOrderedSkills.add(draggedSkill);
           } catch (e) {
             // skillId를 찾을 수 없는 경우 (이론적으로는 발생하지 않아야 함)
-            print('드래그된 스킬을 찾을 수 없습니다: $skillId');
             continue;
           }
         }
@@ -219,17 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // 현재 도전 중인 등급 계산
-  String _getCurrentChallengeRank(int completedCount) {
-    // 현재 완료된 마일스톤 수에 따라 현재 등급 결정
-    if (completedCount < 20) return 'F';
-    if (completedCount <= 39) return 'E';
-    if (completedCount <= 59) return 'D';
-    if (completedCount <= 79) return 'C';
-    if (completedCount <= 99) return 'B';
-    if (completedCount >= 100) return 'A';
-    return 'F';
-  }
+
 
   // 다음 도전 등급 계산
   String _getNextChallengeRank(String currentRank) {
@@ -251,43 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // 현재 도전 중인 랭크의 진행도 계산
-  double _getCurrentRankProgress(SkillProgress skill) {
-    final challengeRank = _getNextChallengeRank(skill.rank);
-    final rankLevels = _getRankLevels();
-    final levels = rankLevels[challengeRank];
-    
-    if (levels == null) return 0.0;
-    
-    final startLevel = levels['start']!;
-    final endLevel = levels['end']!;
-    final totalInRank = endLevel - startLevel + 1;
-    
-    if (skill.completedCount < startLevel) return 0.0;
-    if (skill.completedCount >= endLevel) return 1.0;
-    
-    final completedInRank = skill.completedCount - startLevel + 1;
-    return completedInRank / totalInRank;
-  }
 
-  // 현재 도전 중인 랭크의 완료 개수 계산
-  String _getCurrentRankProgressText(SkillProgress skill) {
-    final challengeRank = _getNextChallengeRank(skill.rank);
-    final rankLevels = _getRankLevels();
-    final levels = rankLevels[challengeRank];
-    
-    if (levels == null) return '0/0';
-    
-    final startLevel = levels['start']!;
-    final endLevel = levels['end']!;
-    final totalInRank = endLevel - startLevel + 1;
-    
-    if (skill.completedCount < startLevel) return '0/$totalInRank';
-    if (skill.completedCount >= endLevel) return '$totalInRank/$totalInRank';
-    
-    final completedInRank = skill.completedCount - startLevel + 1;
-    return '$completedInRank/$totalInRank';
-  }
 
   // 등급별 시작/끝 레벨
   Map<String, Map<String, int>> _getRankLevels() {
@@ -334,160 +287,221 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('DashboardScreen: build 호출됨 - isLoading: $_isLoading');
+    print('DashboardScreen: 스킬 수: ${_skillsWithMilestones.length}');
+    
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 스탯 섹션
-            _buildStatsSection(),
-          ],
+    try {
+      return RefreshIndicator(
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 스탯 섹션
+              _buildStatsSection(),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e, stackTrace) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('화면 렌더링 오류: ${e.toString()}'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                  });
+                  _loadData();
+                },
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
 
 
   Widget _buildStatsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_sortedSkills.isEmpty)
-          _buildEmptyState('마일스톤이 있는 스탯이 없습니다.\n스탯을 선택해서 시작해보세요!')
-        else
-          _buildStatsList(),
-      ],
-    );
+    try {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_sortedSkills.isEmpty)
+            _buildEmptyState('마일스톤이 있는 스탯이 없습니다.\n스탯을 선택해서 시작해보세요!')
+          else
+            _buildStatsList(),
+        ],
+      );
+    } catch (e, stackTrace) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 8),
+            Text('스탯 섹션 렌더링 오류: ${e.toString()}'),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildStatsList() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ReorderableListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _sortedSkills.length,
-        buildDefaultDragHandles: false,
-        onReorder: (oldIndex, newIndex) {
-          // ReorderableListView의 인덱스 조정
-          if (oldIndex < newIndex) {
-            newIndex -= 1;
-          }
-          
-          // 실제 원하는 위치 계산
-          int targetIndex = newIndex;
-          if (oldIndex < newIndex) {
-            // 아래로 드래그할 때는 그대로
-            targetIndex = newIndex;
-          } else {
-            // 위로 드래그할 때는 그대로
-            targetIndex = newIndex;
-          }
-          
-          final skill = _sortedSkills[oldIndex];
-          _updatePriorityOrder(skill.skillId, targetIndex);
-        },
-        itemBuilder: (context, index) {
-          final skill = _sortedSkills[index];
-          
-          return ReorderableDragStartListener(
-            key: ValueKey(skill.skillId),
-            index: index,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => _navigateToSkillMilestones(skill),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
+    try {
+      return Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _sortedSkills.length,
+          buildDefaultDragHandles: false,
+          onReorder: (oldIndex, newIndex) {
+            // ReorderableListView의 인덱스 조정
+            if (oldIndex < newIndex) {
+              newIndex -= 1;
+            }
+            
+            // 실제 원하는 위치 계산
+            int targetIndex = newIndex;
+            if (oldIndex < newIndex) {
+              // 아래로 드래그할 때는 그대로
+              targetIndex = newIndex;
+            } else {
+              // 위로 드래그할 때는 그대로
+              targetIndex = newIndex;
+            }
+            
+            final skill = _sortedSkills[oldIndex];
+            _updatePriorityOrder(skill.skillId, targetIndex);
+          },
+          itemBuilder: (context, index) {
+            try {
+              final skill = _sortedSkills[index];
+              
+              return ReorderableDragStartListener(
+                key: ValueKey(skill.skillId),
+                index: index,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        // 랭크 배지
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getRankColor(skill.rank),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _getRankColor(skill.rank).withOpacity(0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
+                      onTap: () => _navigateToSkillMilestones(skill),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            // 랭크 배지
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _getRankColor(skill.rank),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _getRankColor(skill.rank).withOpacity(0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Text(
-                            skill.rank,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              child: Text(
+                                skill.rank,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        
-                        // 스탯 이름
-                        Expanded(
-                          child: Text(
-                            skill.skillName.withKoreanWordBreak,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                            const SizedBox(width: 12),
+                            
+                            // 스탯 이름
+                            Expanded(
+                              child: Text(
+                                skill.skillName.withKoreanWordBreak,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
                             ),
-                          ),
+                            
+                            // 진행도
+                            Text(
+                              '${_getCurrentRankProgressCount(skill)}/${_getNextRankTarget(skill)}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        
-                        // 진행도
-                        Text(
-                          '${_getCurrentRankProgressCount(skill)}/${_getNextRankTarget(skill)}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
+              );
+            } catch (e, stackTrace) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                child: Text('스킬 렌더링 오류: ${e.toString()}'),
+              );
+            }
+          },
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 8),
+            Text('스탯 목록 렌더링 오류: ${e.toString()}'),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildEmptyState(String message) {
@@ -533,15 +547,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'F':
         return completedCount; // 0-19
       case 'E':
-        return completedCount - 20; // 20-39에서 20을 빼면 0-19
+        return (completedCount - 20).clamp(0, 19); // 20-39에서 20을 빼면 0-19
       case 'D':
-        return completedCount - 40; // 40-59에서 40을 빼면 0-19
+        return (completedCount - 40).clamp(0, 19); // 40-59에서 40을 빼면 0-19
       case 'C':
-        return completedCount - 60; // 60-79에서 60을 빼면 0-19
+        return (completedCount - 60).clamp(0, 19); // 60-79에서 60을 빼면 0-19
       case 'B':
-        return completedCount - 80; // 80-99에서 80을 빼면 0-19
+        return (completedCount - 80).clamp(0, 19); // 80-99에서 80을 빼면 0-19
       case 'A':
-        return completedCount - 100; // 100+에서 100을 빼면 0+
+        return (completedCount - 100).clamp(0, 19); // 100+에서 100을 빼면 0+
       default:
         return completedCount;
     }

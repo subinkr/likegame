@@ -1,11 +1,23 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
+import 'cache_service.dart';
 
 class QuestService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final CacheService _cacheService = CacheService();
+  
+  static const Duration _cacheExpiry = Duration(minutes: 5);
 
-  // 사용자의 모든 퀘스트 가져오기
+  // 사용자의 모든 퀘스트 가져오기 (캐싱 적용)
   Future<List<Quest>> getUserQuests(String userId) async {
+    final cacheKey = 'user_quests_$userId';
+    
+    // 캐시에서 먼저 확인
+    final cachedData = await _cacheService.getData<List<dynamic>>(cacheKey);
+    if (cachedData != null) {
+      return cachedData.map((quest) => Quest.fromJson(quest)).toList();
+    }
+
     try {
       final response = await _supabase
           .from('quests')
@@ -13,16 +25,29 @@ class QuestService {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return (response as List)
+      final quests = (response as List)
           .map((quest) => Quest.fromJson(quest))
           .toList();
+      
+      // 캐시에 저장
+      await _cacheService.setData(cacheKey, response, expiry: _cacheExpiry);
+      
+      return quests;
     } catch (e) {
       rethrow;
     }
   }
 
-  // 완료되지 않은 퀘스트만 가져오기
+  // 완료되지 않은 퀘스트만 가져오기 (캐싱 적용)
   Future<List<Quest>> getIncompleteQuests(String userId) async {
+    final cacheKey = 'incomplete_quests_$userId';
+    
+    // 캐시에서 먼저 확인
+    final cachedData = await _cacheService.getData<List<dynamic>>(cacheKey);
+    if (cachedData != null) {
+      return cachedData.map((quest) => Quest.fromJson(quest)).toList();
+    }
+
     try {
       final response = await _supabase
           .from('quests')
@@ -32,20 +57,32 @@ class QuestService {
           .order('priority', ascending: false)
           .order('due_date', ascending: true);
 
-      return (response as List)
+      final quests = (response as List)
           .map((quest) => Quest.fromJson(quest))
           .toList();
+      
+      // 캐시에 저장
+      await _cacheService.setData(cacheKey, response, expiry: _cacheExpiry);
+      
+      return quests;
     } catch (e) {
       rethrow;
     }
   }
 
-  // 오늘 마감인 퀘스트 가져오기
+  // 오늘 마감인 퀘스트 가져오기 (캐싱 적용)
   Future<List<Quest>> getTodayQuests(String userId) async {
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final cacheKey = 'today_quests_${userId}_$todayStr';
+    
+    // 캐시에서 먼저 확인
+    final cachedData = await _cacheService.getData<List<dynamic>>(cacheKey);
+    if (cachedData != null) {
+      return cachedData.map((quest) => Quest.fromJson(quest)).toList();
+    }
+
     try {
-      final today = DateTime.now();
-      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      
       final response = await _supabase
           .from('quests')
           .select('*')
@@ -54,9 +91,14 @@ class QuestService {
           .eq('is_completed', false)
           .order('priority', ascending: false);
 
-      return (response as List)
+      final quests = (response as List)
           .map((quest) => Quest.fromJson(quest))
           .toList();
+      
+      // 캐시에 저장 (오늘 데이터는 더 짧은 시간만 캐시)
+      await _cacheService.setData(cacheKey, response, expiry: const Duration(minutes: 2));
+      
+      return quests;
     } catch (e) {
       rethrow;
     }
@@ -100,7 +142,12 @@ class QuestService {
           .select()
           .single();
 
-      return Quest.fromJson(response);
+      final quest = Quest.fromJson(response);
+      
+      // 캐시 무효화
+      await _invalidateUserCache(userId);
+      
+      return quest;
     } catch (e) {
       rethrow;
     }
@@ -115,8 +162,17 @@ class QuestService {
     String? priority,
     String? difficulty,
     bool? isCompleted,
+    List<SubTask>? subTasks,
   }) async {
     try {
+      // 먼저 현재 퀘스트 정보를 가져와서 사용자 ID 확인
+      final currentQuestResponse = await _supabase
+          .from('quests')
+          .select('user_id')
+          .eq('id', questId)
+          .single();
+      final userId = currentQuestResponse['user_id'] as String;
+
       final updateData = <String, dynamic>{};
       
       if (title != null) updateData['title'] = title;
@@ -129,6 +185,18 @@ class QuestService {
       
       updateData['updated_at'] = DateTime.now().toIso8601String();
 
+      // 서브태스크가 제공된 경우 JSONB 형태로 변환하여 추가
+      if (subTasks != null) {
+        updateData['sub_tasks'] = subTasks.map((task) => {
+          'id': task.id.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : task.id,
+          'title': task.title,
+          'is_completed': task.isCompleted,
+          'created_at': task.createdAt.toIso8601String(),
+          if (task.completedAt != null) 'completed_at': task.completedAt!.toIso8601String(),
+        }).toList();
+      }
+
+      // 퀘스트 업데이트
       final response = await _supabase
           .from('quests')
           .update(updateData)
@@ -136,7 +204,12 @@ class QuestService {
           .select()
           .single();
 
-      return Quest.fromJson(response);
+      final updatedQuest = Quest.fromJson(response);
+      
+      // 캐시 무효화
+      await _invalidateUserCache(userId);
+      
+      return updatedQuest;
     } catch (e) {
       rethrow;
     }
@@ -165,9 +238,19 @@ class QuestService {
           .select()
           .single();
 
-      return Quest.fromJson(response);
+      final result = Quest.fromJson(response);
+      
+      // 캐시 무효화
+      final questResponse = await _supabase
+          .from('quests')
+          .select('user_id')
+          .eq('id', questId)
+          .single();
+      final userId = questResponse['user_id'] as String;
+      await _invalidateUserCache(userId);
+      
+      return result;
     } catch (e) {
-      print('퀘스트 토글 실패: $e');
       rethrow;
     }
   }
@@ -204,9 +287,19 @@ class QuestService {
           .select()
           .single();
 
-      return Quest.fromJson(response);
+      final result = Quest.fromJson(response);
+      
+      // 캐시 무효화
+      final questResponse = await _supabase
+          .from('quests')
+          .select('user_id')
+          .eq('id', questId)
+          .single();
+      final userId = questResponse['user_id'] as String;
+      await _invalidateUserCache(userId);
+      
+      return result;
     } catch (e) {
-      print('퀘스트 진행 상태 토글 실패: $e');
       rethrow;
     }
   }
@@ -214,10 +307,21 @@ class QuestService {
   // 퀘스트 삭제
   Future<void> deleteQuest(String questId) async {
     try {
+      // 삭제 전에 사용자 ID 가져오기
+      final questResponse = await _supabase
+          .from('quests')
+          .select('user_id')
+          .eq('id', questId)
+          .single();
+      final userId = questResponse['user_id'] as String;
+      
       await _supabase
           .from('quests')
           .delete()
           .eq('id', questId);
+      
+      // 캐시 무효화
+      await _invalidateUserCache(userId);
     } catch (e) {
       rethrow;
     }
@@ -267,7 +371,6 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
-      print('서브태스크 추가 실패: $e');
       rethrow;
     }
   }
@@ -316,7 +419,6 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
-      print('서브태스크 토글 실패: $e');
       rethrow;
     }
   }
@@ -349,7 +451,6 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
-      print('서브태스크 삭제 실패: $e');
       rethrow;
     }
   }
@@ -398,7 +499,6 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
-      print('서브태스크 수정 실패: $e');
       rethrow;
     }
   }
@@ -438,32 +538,13 @@ class QuestService {
 
       return Quest.fromJson(response);
     } catch (e) {
-      print('서브태스크 순서 변경 실패: $e');
       rethrow;
     }
   }
 
-  // 서브태스크 업데이트 (새로 추가)
-  Future<Quest> updateQuestSubTasks(String questId, List<SubTask> subTasks) async {
-    try {
-      final response = await _supabase
-          .from('quests')
-          .update({
-            'sub_tasks': subTasks.map((task) => task.toJson()).toList(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', questId)
-          .select()
-          .single();
 
-      return Quest.fromJson(response);
-    } catch (e) {
-      print('서브태스크 업데이트 실패: $e');
-      rethrow;
-    }
-  }
 
-  // 모든 서브태스크 완료/미완료 토글 (새로 추가)
+  // 모든 서브태스크 완료/미완료 토글
   Future<Quest> toggleAllSubTasks(String questId, bool isCompleted) async {
     try {
       // 1. 현재 퀘스트 정보 가져오기
@@ -484,20 +565,12 @@ class QuestService {
         createdAt: task.createdAt,
       )).toList();
       
-      // 3. 서버 업데이트
-      final response = await _supabase
-          .from('quests')
-          .update({
-            'sub_tasks': updatedSubTasks.map((task) => task.toJson()).toList(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', questId)
-          .select()
-          .single();
-
-      return Quest.fromJson(response);
+      // 3. 서버 업데이트 (updateQuest 메서드 사용)
+      return await updateQuest(
+        questId: questId,
+        subTasks: updatedSubTasks,
+      );
     } catch (e) {
-      print('모든 서브태스크 토글 실패: $e');
       rethrow;
     }
   }
@@ -582,5 +655,16 @@ class QuestService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  // 캐시 무효화
+  Future<void> _invalidateUserCache(String userId) async {
+    await _cacheService.removeData('user_quests_$userId');
+    await _cacheService.removeData('incomplete_quests_$userId');
+    
+    // 오늘 날짜의 캐시도 무효화
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    await _cacheService.removeData('today_quests_${userId}_$todayStr');
   }
 }

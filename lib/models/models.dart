@@ -334,7 +334,18 @@ class Quest {
       category: json['category'],
 
       subTasks: (json['sub_tasks'] as List<dynamic>? ?? [])
-          .map((task) => SubTask.fromJson(task))
+          .map((task) {
+            try {
+              return SubTask.fromJson(task);
+            } catch (e) {
+              return SubTask(
+                id: '',
+                title: '오류가 발생한 서브태스크',
+                isCompleted: false,
+                createdAt: DateTime.now(),
+              );
+            }
+          })
           .toList(),
       repeatPattern: json['repeat_pattern'],
       repeatConfig: json['repeat_config'] != null 
@@ -543,13 +554,15 @@ class SubTask {
 
   factory SubTask.fromJson(Map<String, dynamic> json) {
     return SubTask(
-      id: json['id'],
-      title: json['title'],
+      id: json['id'] ?? '', // null인 경우 빈 문자열로 처리
+      title: json['title'] ?? '',
       isCompleted: json['is_completed'] ?? false,
       completedAt: json['completed_at'] != null 
           ? DateTime.parse(json['completed_at']) 
           : null,
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
     );
   }
 
@@ -599,7 +612,18 @@ class QuestTemplate {
       description: json['description'],
       category: json['category'],
       subTasks: (json['sub_tasks'] as List<dynamic>? ?? [])
-          .map((task) => SubTask.fromJson(task))
+          .map((task) {
+            try {
+              return SubTask.fromJson(task);
+            } catch (e) {
+              return SubTask(
+                id: '',
+                title: '오류가 발생한 서브태스크',
+                isCompleted: false,
+                createdAt: DateTime.now(),
+              );
+            }
+          })
           .toList(),
       difficulty: json['difficulty'] ?? 'F',
       repeatPattern: json['repeat_pattern'],

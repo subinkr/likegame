@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import '../config/supabase_config.dart';
+import '../utils/error_handler.dart';
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -15,11 +16,11 @@ class AuthService {
     required String password,
   }) async {
     try {
-      // Supabase 연결 상태 확인
-
-      
       if (!SupabaseConfig.isConfigured) {
-        throw Exception('Supabase 설정이 완료되지 않았습니다. .env 파일에서 SUPABASE_URL과 SUPABASE_ANON_KEY를 설정해주세요.');
+        throw const AppError(
+          type: AppErrorType.validation,
+          message: 'Supabase 설정이 완료되지 않았습니다. 설정을 확인해주세요.',
+        );
       }
       
       final response = await _supabase.auth.signUp(
@@ -27,30 +28,9 @@ class AuthService {
         password: password,
       );
       
-      // 프로필은 트리거에서 자동으로 생성됨
-      // 추가 작업이 필요하면 여기에 작성
-      
       return response;
-    } on AuthException catch (e) {
-      // Supabase 인증 오류 처리
-      switch (e.message) {
-        case 'User already registered':
-          throw Exception('이미 등록된 이메일입니다.');
-        case 'Password should be at least 6 characters':
-          throw Exception('비밀번호는 최소 6자 이상이어야 합니다.');
-        case 'Invalid email':
-          throw Exception('올바른 이메일 형식을 입력해주세요.');
-        default:
-          if (e.message.contains('404') || e.message.contains('empty response')) {
-            throw Exception('Supabase 서버에 연결할 수 없습니다. 설정을 확인해주세요.');
-          }
-          throw Exception('회원가입 오류: ${e.message}');
-      }
     } catch (e) {
-      if (e.toString().contains('404') || e.toString().contains('empty response')) {
-        throw Exception('Supabase 서버 연결 오류: 설정 파일의 URL과 API 키를 확인해주세요.');
-      }
-      rethrow;
+      throw ErrorHandler.handleSupabaseError(e);
     }
   }
 
@@ -117,38 +97,12 @@ class AuthService {
       }
       
       return response;
-    } on AuthException catch (e) {
-      // Supabase 인증 오류 처리
-      switch (e.message) {
-        case 'Invalid login credentials':
-          throw Exception('이메일 또는 비밀번호가 올바르지 않습니다.');
-        case 'Email not confirmed':
-          throw Exception('이메일 인증이 필요합니다. 이메일을 확인해주세요.');
-        case 'Too many requests':
-          throw Exception('너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.');
-        case 'User not found':
-          throw Exception('등록되지 않은 이메일입니다. 회원가입을 먼저 해주세요.');
-        case 'Invalid email':
-          throw Exception('올바른 이메일 형식을 입력해주세요.');
-        case 'Password should be at least 6 characters':
-          throw Exception('비밀번호는 최소 6자 이상이어야 합니다.');
-        default:
-          if (e.message.contains('404') || e.message.contains('empty response')) {
-            throw Exception('서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.');
-          }
-          throw Exception('로그인 오류: ${e.message}');
-      }
     } catch (e) {
-      if (e.toString().contains('404') || e.toString().contains('empty response')) {
-        throw Exception('서버 연결 오류: 설정을 확인해주세요.');
+      // 탈퇴한 계정 에러는 그대로 전달
+      if (e.toString().contains('탈퇴한 계정입니다')) {
+        rethrow;
       }
-      if (e.toString().contains('timeout')) {
-        throw Exception('로그인 시간이 초과되었습니다. 다시 시도해주세요.');
-      }
-      if (e.toString().contains('network')) {
-        throw Exception('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
-      }
-      rethrow;
+      throw ErrorHandler.handleSupabaseError(e);
     }
   }
 
@@ -177,16 +131,13 @@ class AuthService {
       
       // 탈퇴한 계정인지 확인
       if (profile.isDeleted) {
-        print('탈퇴한 계정 감지');
         throw Exception('탈퇴한 계정입니다.');
       }
       
       return profile;
     } catch (e) {
-      print('프로필 가져오기 실패');
       // 406 오류나 다른 오류 시 로그아웃 처리
       if (e.toString().contains('406') || e.toString().contains('Not Acceptable')) {
-        print('406 오류 감지, 로그아웃 처리');
         await _supabase.auth.signOut();
         throw Exception('탈퇴한 계정입니다.');
       }
@@ -263,18 +214,14 @@ class AuthService {
       final user = currentUser;
       if (user == null) throw Exception('로그인이 필요합니다.');
 
-      print('계정 탈퇴 프로세스 시작');
-
       // 1. 비밀번호 확인 (재인증)
       await _supabase.auth.signInWithPassword(
         email: user.email ?? '',
         password: password,
       );
-      print('비밀번호 확인 완료');
 
       // 2. 사용자 데이터 삭제
       await _deleteUserData(user.id);
-      print('사용자 데이터 삭제 완료');
 
       // 3. is_deleted = true로 설정 (계정 완전 삭제 없이)
       try {
@@ -285,17 +232,14 @@ class AuthService {
               'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('id', user.id);
-        print('계정 탈퇴 처리 성공');
       } catch (e) {
-        print('계정 탈퇴 처리 실패');
+        // 계정 탈퇴 처리 실패
       }
 
       // 4. 로그아웃
       await _supabase.auth.signOut();
-      print('계정 탈퇴 완료');
 
     } on AuthException catch (e) {
-      print('AuthException 발생');
       switch (e.message) {
         case 'Invalid login credentials':
           throw Exception('비밀번호가 올바르지 않습니다.');
@@ -307,7 +251,6 @@ class AuthService {
           throw Exception('계정 탈퇴 실패: ${e.message}');
       }
     } catch (e) {
-      print('계정 탈퇴 중 오류 발생');
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
         throw Exception('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
       }
@@ -320,46 +263,37 @@ class AuthService {
   // 사용자 데이터 삭제 (새로운 방법)
   Future<void> _deleteUserData(String userId) async {
     try {
-      print('사용자 데이터 삭제 시작');
-      
       // 1. 사용자 마일스톤 삭제
       try {
         await _supabase.from('user_milestones').delete().eq('user_id', userId);
-        print('마일스톤 삭제 완료');
       } catch (e) {
-        print('마일스톤 삭제 실패');
+        // 마일스톤 삭제 실패
       }
 
       // 2. 스탯 우선순위 삭제
       try {
         await _supabase.from('user_stat_priorities').delete().eq('user_id', userId);
-        print('스탯 우선순위 삭제 완료');
       } catch (e) {
-        print('스탯 우선순위 삭제 실패');
+        // 스탯 우선순위 삭제 실패
       }
 
       // 3. 스킬 삭제
       try {
         await _supabase.from('skills').delete().eq('user_id', userId);
-        print('스킬 삭제 완료');
       } catch (e) {
-        print('스킬 삭제 실패');
+        // 스킬 삭제 실패
       }
 
       // 4. 퀘스트 삭제
       try {
         await _supabase.from('quests').delete().eq('user_id', userId);
-        print('퀘스트 삭제 완료');
       } catch (e) {
-        print('퀘스트 삭제 실패');
+        // 퀘스트 삭제 실패
       }
 
       // 5. 프로필은 삭제하지 않음 (초기화로 대체)
-      print('프로필 삭제 건너뜀 (초기화로 대체)');
-
-      print('모든 사용자 데이터 삭제 완료');
     } catch (e) {
-      print('사용자 데이터 삭제 중 오류');
+      // 사용자 데이터 삭제 중 오류
       // 데이터 삭제 실패해도 계정 탈퇴는 계속 진행
     }
   }

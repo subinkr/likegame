@@ -13,10 +13,12 @@ class PriorityService {
           .eq('user_id', userId)
           .order('priority_order', ascending: true);
 
-      return (response as List)
+      final priorities = (response as List)
           .map((priority) => UserStatPriority.fromJson(priority))
           .toList();
-    } catch (e) {
+      
+      return priorities;
+    } catch (e, stackTrace) {
       rethrow;
     }
   }
