@@ -13,13 +13,13 @@
 ```bash
 vercel teams ls
 ```
-**현재 VERCEL_ORG_ID**: `subinkrs-projects`
+**현재 VERCEL_ORG_ID**: `likegame`
 
 ### PROJECT_ID 확인
 ```bash
-vercel projects ls
+vercel project inspect app
 ```
-**현재 VERCEL_PROJECT_ID**: `prj_ar7rsPW9zxbrprVzytCONqHS5Vdv`
+**현재 VERCEL_PROJECT_ID**: `prj_KDjqVq3mgeWQftUzlVxG08WxHyk2`
 
 ## 3. GitHub Secrets 설정
 
@@ -31,11 +31,11 @@ GitHub 저장소 → Settings → Secrets and variables → Actions에서 다음
 
 ### VERCEL_ORG_ID
 - Name: `VERCEL_ORG_ID`
-- Value: Vercel 조직 ID
+- Value: `likegame`
 
 ### VERCEL_PROJECT_ID
 - Name: `VERCEL_PROJECT_ID`
-- Value: Vercel 프로젝트 ID
+- Value: `prj_KDjqVq3mgeWQftUzlVxG08WxHyk2`
 
 ## 4. 설정 확인
 
@@ -53,3 +53,8 @@ vercel projects ls
 # 조직 정보 확인
 vercel teams ls
 ```
+
+## 6. 배포 URL
+
+- 프로덕션 URL: https://app.likegame.life
+- Vercel URL: https://app-i4jahvwb1-likegame.vercel.app

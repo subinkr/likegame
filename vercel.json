@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.22.1-stable.tar.xz | tar -xJ && export PATH=\"$PATH:$PWD/flutter/bin\" && cd /vercel/path0 && flutter build web --base-href /",
   "outputDirectory": "build/web",
   "routes": [
     {
