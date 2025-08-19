@@ -27,17 +27,15 @@ jobs:
     
     - name: Debug Vercel Info
       run: |
-        echo "VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}"
-        echo "VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}"
+        echo "VERCEL_ORG_ID: likegame"
+        echo "VERCEL_PROJECT_ID: prj_COmVFK363PyteH1fQdCIfsNERIRD"
         echo "VERCEL_TOKEN exists: ${{ secrets.VERCEL_TOKEN != '' }}"
     
-    - name: Install Vercel CLI
-      run: npm install --global vercel@latest
-      
     - name: Deploy to Vercel
-      env:
-        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      run: |
-        vercel --prod --yes
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: likegame
+        vercel-project-id: prj_COmVFK363PyteH1fQdCIfsNERIRD
+        working-directory: ./
+        vercel-args: '--prod'
